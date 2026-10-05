@@ -1,26 +1,261 @@
 @import "tailwindcss";
 
+/*
+ * Design tokens. Colour carries meaning and nothing else:
+ * ink = normal, info = information, attention = amber, risk = red, positive = green.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #06070a;
+  --bg-raised: #0c0e13;
+  --ink: #ecebe6;
+  --ink-2: rgba(236, 235, 230, 0.62);
+  --ink-3: rgba(236, 235, 230, 0.38);
+  --line: rgba(236, 235, 230, 0.14);
+  --line-strong: rgba(236, 235, 230, 0.32);
+  --info: #8fb8ff;
+  --attention: #f0b354;
+  --risk: #ff6242;
+  --positive: #62d6a4;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --slow: 1100ms;
+  --gutter: clamp(20px, 3.2vw, 48px);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-raised: var(--bg-raised);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-info: var(--info);
+  --color-attention: var(--attention);
+  --color-risk: var(--risk);
+  --color-positive: var(--positive);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --ease-xray: var(--ease);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html,
+body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-feature-settings: "ss01", "cv11", "tnum";
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--bg);
+}
+
+:focus-visible {
+  outline: 1px solid var(--ink);
+  outline-offset: 4px;
+}
+
+@layer components {
+/* Instrument label: small tracked mono caps. */
+.label {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.display {
+  font-weight: 500;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+}
+
+.figure {
+  font-weight: 400;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bracketed command: the only button style in the product. */
+.command {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.9em;
+  padding: 14px 0;
+  white-space: nowrap;
+  color: var(--ink);
+  cursor: pointer;
+  transition: gap 500ms var(--ease), color 300ms;
+}
+.command::before {
+  content: "[";
+  color: var(--ink-3);
+}
+.command::after {
+  content: "]";
+  color: var(--ink-3);
+}
+.command:hover,
+.command:focus-visible {
+  gap: 1.6em;
+}
+.command:focus-visible {
+  outline: none;
+  box-shadow: 0 1px 0 var(--ink-2);
+}
+.command[data-quiet="true"] {
+  color: var(--ink-2);
+}
+
+}
+
+.tone-risk {
+  --tone: var(--risk);
+}
+.tone-attention {
+  --tone: var(--attention);
+}
+.tone-positive {
+  --tone: var(--positive);
+}
+
+/* Labels anchored to clusters inside the WebGL scene. */
+.xr-label {
+  --shift: translate(-50%, -50%);
+  position: absolute;
+  transform: var(--shift);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  opacity: 0;
+  animation: label-in 900ms var(--ease) 1100ms forwards;
+  user-select: none;
+}
+.xr-label[data-anchor="left"] {
+  --shift: translate(0, -50%);
+  align-items: flex-start;
+}
+.xr-label[data-anchor="right"] {
+  --shift: translate(-100%, -50%);
+  align-items: flex-end;
+}
+.xr-label[data-emphasis="low"] {
+  color: var(--ink-3);
+}
+.xr-label[data-emphasis="high"] {
+  color: var(--ink);
+  font-size: 11px;
+}
+.xr-label .note {
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+.xr-label[data-emphasis="high"] .note {
+  color: var(--tone, var(--ink));
+  font-size: 13px;
+}
+@keyframes label-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.reveal > * {
+  opacity: 0;
+  animation: rise var(--slow) var(--ease) forwards;
+}
+.reveal > *:nth-child(1) { animation-delay: 80ms; }
+.reveal > *:nth-child(2) { animation-delay: 200ms; }
+.reveal > *:nth-child(3) { animation-delay: 320ms; }
+.reveal > *:nth-child(4) { animation-delay: 440ms; }
+.reveal > *:nth-child(5) { animation-delay: 560ms; }
+.reveal > *:nth-child(6) { animation-delay: 680ms; }
+.reveal > *:nth-child(n + 7) { animation-delay: 800ms; }
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.scroll-quiet {
+  scrollbar-width: none;
+}
+.scroll-quiet::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal > *,
+  .xr-label {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+}
+[data-reduced-motion="true"] .reveal > *,
+[data-reduced-motion="true"] .xr-label {
+  animation-duration: 1ms;
+  animation-delay: 0ms;
+}
+
+/*
+ * Stage layout. Desktop: two text columns flank the visualization.
+ * Compact: the visualization keeps the top of the screen and text scrolls beneath it.
+ */
+.stage-grid {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(300px, 27vw) 1fr minmax(300px, 26vw);
+  gap: var(--gutter);
+  padding: 96px var(--gutter) 76px;
+}
+.stage-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 0;
+}
+@media (max-width: 1023px) {
+  .stage-grid {
+    display: block;
+    overflow-y: auto;
+    pointer-events: auto;
+    padding: 50dvh var(--gutter) 120px;
+    scrollbar-width: none;
+    /* Text fades out as it scrolls up into the visualization. */
+    mask-image: linear-gradient(to bottom, transparent 40dvh, #000 49dvh);
+  }
+  .stage-col {
+    display: block;
+    padding-top: 28px;
+    padding-bottom: 12px;
+  }
 }
