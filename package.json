@@ -13,6 +13,7 @@
     "export": "tsx scripts/export.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.1",
     "motion": "^14.0.0",

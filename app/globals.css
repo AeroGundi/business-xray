@@ -240,8 +240,12 @@ body {
 .stage-col {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /* "safe" keeps the top reachable when a column is taller than the screen. */
+  justify-content: safe center;
   min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  pointer-events: auto;
 }
 @media (max-width: 1023px) {
   .stage-grid {
@@ -255,6 +259,7 @@ body {
   }
   .stage-col {
     display: block;
+    overflow: visible;
     padding-top: 28px;
     padding-bottom: 12px;
   }

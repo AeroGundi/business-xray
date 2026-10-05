@@ -1,6 +1,7 @@
 "use client";
 
 import { useXray } from "@/store/useXray";
+import { AskBar } from "./AskBar";
 import { FindingsList } from "./FindingsList";
 import { HealthScore } from "./HealthScore";
 
@@ -16,7 +17,9 @@ export function Overview() {
           <HealthScore health={health} />
         </div>
       </div>
-      <div aria-hidden className="max-lg:hidden" />
+      <div className="flex flex-col justify-end max-lg:order-last max-lg:pt-10">
+        <AskBar />
+      </div>
       <div className="stage-col">
         <FindingsList findings={findings} />
       </div>

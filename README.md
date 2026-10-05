@@ -26,10 +26,17 @@ npm run dev
 ## What exists
 
 Landing → business scan → health score and seven findings → root-cause
-drill-down → evidence → impact. See `docs/ARCHITECTURE.md` and
-`docs/METHODOLOGY.md`.
+drill-down → evidence and testable hypotheses → impact, plus Ask the Business
+(natural-language questions answered by the analytics engine). See
+`docs/ARCHITECTURE.md` and `docs/METHODOLOGY.md`.
 
-Planned: Ask the Business, LLM explanations behind `AIProvider`, What-If
-simulator, Decision chapter.
+Planned: What-If simulator, Decision chapter.
 
-Keyboard: `Enter` to scan, `←` `→` to move through an investigation, `Esc` to close.
+## Optional: model-worded explanations
+
+Explanations are template-built by default. To have Claude reword them, start
+the server with `ANTHROPIC_API_KEY` set (optionally `AI_MODEL`, default
+`claude-opus-5-5`). Generated text is shown only if every figure in it appears
+in the analysis; otherwise the template wording is kept.
+
+Keyboard: `Enter` to scan, `/` to ask, `←` `→` to move through an investigation, `Esc` to close.

@@ -11,6 +11,7 @@ import type { ViewSpec } from "@/lib/visualization/layout";
 import { buildParticles } from "@/lib/visualization/particles";
 import { investigationView, overviewView } from "@/lib/visualization/view";
 import { activeFinding, useXray } from "@/store/useXray";
+import { AnswerView } from "./AnswerView";
 import { Chrome } from "./Chrome";
 import { Investigation } from "./Investigation";
 import { Landing } from "./Landing";
@@ -31,6 +32,7 @@ export function Experience() {
   const stage = useXray((s) => s.stage);
   const reducedMotion = useXray((s) => s.reducedMotion);
   const finding = useXray(activeFinding);
+  const answer = useXray((s) => s.answer);
 
   useEffect(() => {
     const store = useXray.getState();
@@ -48,9 +50,10 @@ export function Experience() {
   const spec: ViewSpec = useMemo(() => {
     if (phase === "scanning") return { mode: "cluster", scope: {}, dim: scanDim, hue: 0 };
     if (phase === "overview" && particles) return overviewView(findings, findings.find((f) => f.id === hoverId) ?? null, particles);
+    if (phase === "answer" && answer && particles) return answer.view ?? overviewView(findings, null, particles);
     if (phase === "investigating" && finding) return investigationView(finding, stage);
     return DORMANT;
-  }, [phase, scanDim, findings, hoverId, finding, stage, particles]);
+  }, [phase, scanDim, findings, hoverId, finding, stage, particles, answer]);
 
   // Text equivalent of the current view for assistive technology.
   const summary = useMemo(() => {
@@ -59,8 +62,9 @@ export function Experience() {
     if (phase === "overview") {
       return `Scan complete. ${findings.length} findings: ${findings.map((f) => `${headline(f)} ${formatChange(f.effect.change, f.effect.changePct, METRICS[f.metric].unit)}`).join("; ")}.`;
     }
+    if (phase === "answer" && answer) return `${answer.question} ${answer.interpretation}. ${answer.explanation}`;
     return finding ? `${headline(finding)}. ${causeStatement(finding)}` : "";
-  }, [phase, scanIndex, findings, finding]);
+  }, [phase, scanIndex, findings, finding, answer]);
 
   return (
     <main className="relative h-dvh w-full overflow-hidden bg-bg text-ink" data-reduced-motion={reducedMotion}>
@@ -78,7 +82,7 @@ export function Experience() {
 
       <AnimatePresence mode="wait">
         <motion.div
-          key={phase === "investigating" ? `investigating-${finding?.id}` : phase}
+          key={phase === "investigating" ? `investigating-${finding?.id}-${finding?.question ?? ""}` : phase}
           className="pointer-events-none absolute inset-0 z-10"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: reducedMotion ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] }}
@@ -86,6 +90,7 @@ export function Experience() {
           {phase === "landing" && <Landing />}
           {phase === "scanning" && <ScanReadout />}
           {phase === "overview" && <Overview />}
+          {phase === "answer" && answer && <AnswerView answer={answer} />}
           {phase === "investigating" && finding && <Investigation finding={finding} />}
         </motion.div>
       </AnimatePresence>

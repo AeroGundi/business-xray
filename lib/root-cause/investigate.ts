@@ -87,8 +87,17 @@ export function rowValue(metric: Metric, row: FactRow): number | null {
   return den > 0 ? num / den : null;
 }
 
-export function findDrivers(data: Dataset, target: Metric, scope: Scope, c: Comparison): Driver[] {
-  const candidates = CANDIDATES[target.source].filter((id) => id !== target.id);
+/** Candidate driver metrics for a target, i.e. the hypotheses the engine can test. */
+export function driverCandidates(target: Metric): MetricId[] {
+  return CANDIDATES[target.source].filter((id) => id !== target.id);
+}
+
+/** A driver counts as supported when the shift is both significant and material. */
+export const isSupported = (d: Driver): boolean => d.p <= DRIVER.maxP && Math.abs(d.changePct) >= DRIVER.minRelChange;
+
+/** Tests candidate drivers inside a scope and returns every result, supported or not. */
+export function testDrivers(data: Dataset, target: Metric, scope: Scope, c: Comparison, only?: MetricId[]): Driver[] {
+  const candidates = only ?? driverCandidates(target);
   const hasControl = c.kind === "time" && Object.keys(scope).length > 0;
   const acc = candidates.map(() => ({ a: new Accumulator(), b: new Accumulator(), ca: new Accumulator(), cb: new Accumulator() }));
 
@@ -101,21 +110,17 @@ export function findDrivers(data: Dataset, target: Metric, scope: Scope, c: Comp
     }
     if (!side) continue;
     for (let i = 0; i < candidates.length; i++) {
-      const m = METRICS[candidates[i]];
-      const v = rowValue(m, row);
+      const v = rowValue(METRICS[candidates[i]], row);
       if (v === null) continue;
       acc[i][control ? (side === "a" ? "ca" : "cb") : side].add(v);
     }
   }
 
   const targetWeekly = c.kind === "time" ? weeklyValues(target, weeklySeries(data, target, scope)) : null;
-  const drivers: Driver[] = [];
-  candidates.forEach((id, i) => {
+  return candidates.map((id, i) => {
     const { a, b, ca, cb } = acc[i];
     const test = meanDifferenceTest(a.moments, b.moments);
     const before = b.moments.mean;
-    const changePct = before !== 0 ? test.diff / Math.abs(before) : 0;
-    if (test.p > DRIVER.maxP || Math.abs(changePct) < DRIVER.minRelChange) return;
     const controlChange = hasControl ? ca.moments.mean - cb.moments.mean : null;
     let correlation: Driver["correlation"] = null;
     if (targetWeekly) {
@@ -131,12 +136,18 @@ export function findDrivers(data: Dataset, target: Metric, scope: Scope, c: Comp
       }
       correlation = pearson(xs, ys);
     }
-    drivers.push({
-      metric: id, before, after: a.moments.mean, change: test.diff, changePct,
+    return {
+      metric: id, before, after: a.moments.mean, change: test.diff, changePct: before !== 0 ? test.diff / Math.abs(before) : 0,
       controlChange, did: test.diff - (controlChange ?? 0), statistic: test.statistic, p: test.p, correlation,
-    });
+    };
   });
-  return drivers.sort((x, y) => Math.abs(y.statistic) - Math.abs(x.statistic)).slice(0, DRIVER.maxDrivers);
+}
+
+export function findDrivers(data: Dataset, target: Metric, scope: Scope, c: Comparison): Driver[] {
+  return testDrivers(data, target, scope, c)
+    .filter(isSupported)
+    .sort((x, y) => Math.abs(y.statistic) - Math.abs(x.statistic))
+    .slice(0, DRIVER.maxDrivers);
 }
 
 /** Translates a metric change into a business quantity. Formulas are documented in docs/METHODOLOGY.md. */

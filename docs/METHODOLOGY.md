@@ -149,13 +149,53 @@ Thresholds are judgement calls for a mid-size e-commerce retailer and should
 be defended or recalibrated as such; the score is a transparent index, not a
 statistical estimate.
 
-## 8. AI architecture (planned)
+## 8. AI layer: Ask the Business (`lib/ai`)
 
     question → intent → analytical function → structured result → explanation → UI
 
-`AIProvider` receives structured results only and returns wording. The current
-`TemplateProvider` is deterministic. An LLM provider must be held to the same
-contract: no numeric value in its output that is absent from its input.
+**Intent (`intent.ts`).** A deterministic, rule-based interpreter. It detects a
+metric (synonym patterns, most specific first), a scope (members of each
+dimension found in the question, plus a small alias table) and whether the
+question is comparative. It returns one of four intents:
+
+| Intent | Example | Analytical function |
+|---|---|---|
+| `explain(metric, scope)` | "Why did revenue fall in Germany?" | shift detection + root-cause investigation (§3, §5) |
+| `rank(metric, dim, scope)` | "Which customers are most at risk?" | contribution split by the dimension (§4), ordered worst first |
+| `overview` | "What changed this quarter?" | the scan's findings ranked by estimated impact |
+| `unknown` | "What is the weather?" | none — the product says it cannot answer |
+
+A question that maps to nothing is refused, never guessed. If an `explain`
+question matches a finding the scan already produced, that finding is reused
+so two routes to the same question cannot disagree. Segments with fewer than
+60 fact rows are refused as too thin.
+
+**Structured result (`answer.ts`).** Every answer carries its interpretation,
+evidence rows, a view for the visualization, a recommended next
+investigation, a template explanation and a `facts` list. All figures are
+computed here.
+
+**Explanation (`provider.ts`).** `AIProvider.explain({topic, draft, facts})`
+returns wording. `TemplateProvider` returns the draft. `RemoteProvider` calls
+`/api/explain`, where a `TextModel` (currently Claude via the Anthropic SDK;
+vendor chosen in one function) rewrites the draft.
+
+**Grounding (`grounding.ts`).** Every numeric token in generated text must
+appear in the draft or the facts after normalisation; otherwise the text is
+discarded and the draft is shown. The check runs on the server and again on
+the client. The interface labels which wording is displayed. This guarantees
+no invented *figures*; it does not verify non-numeric claims, which is why
+the model is instructed to preserve the draft's hedged causal language and
+why the draft remains the reference.
+
+**Hypotheses (`insights/hypotheses.ts`).** Each candidate driver not already
+confirmed is offered as a hypothesis; testing it runs the same test as §5 in
+the final segment and reports supported / not supported with the statistic.
+
+Limitations: the interpreter covers a fixed vocabulary and one metric per
+question; it has no memory of previous questions; time periods in a question
+("this quarter", "last month") are not parsed — the standard 10-week
+comparison is always used and stated in the interpretation.
 
 ## 9. Evaluation design (proposed)
 

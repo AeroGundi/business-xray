@@ -9,7 +9,7 @@ function useChapter(): number {
   return useXray((s) => {
     if (s.phase === "landing") return 0;
     if (s.phase === "scanning") return 1;
-    if (s.phase === "overview") return 2;
+    if (s.phase === "overview" || s.phase === "answer") return 2;
     const f = activeFinding(s);
     const kind = f ? stagesOf(f)[s.stage]?.kind : "metric";
     return kind === "segment" ? 3 : kind === "cause" ? 4 : kind === "impact" ? 5 : 2;
@@ -54,7 +54,7 @@ export function Chrome() {
           </span>
         </div>
         {phase === "investigating" && <p className="label max-lg:hidden">← → move · esc close</p>}
-        {phase === "overview" && <p className="label max-lg:hidden">Synthetic data · seed {data?.seed}</p>}
+        {(phase === "overview" || phase === "answer") && <p className="label max-lg:hidden">/ to ask · synthetic data · seed {data?.seed}</p>}
       </footer>
     </>
   );

@@ -1,7 +1,8 @@
 import type { Comparison, Effect, Split } from "@/lib/analytics/compare";
 import type { DimKey, MetricId, Scope } from "@/lib/analytics/metrics";
 
-export type FindingId = "revenue" | "churn" | "margin" | "delivery" | "region" | "marketing" | "opportunity";
+/** "ask" is an investigation opened from a natural-language question. */
+export type FindingId = "revenue" | "churn" | "margin" | "delivery" | "region" | "marketing" | "opportunity" | "ask";
 export type Tone = "risk" | "attention" | "positive";
 
 /** One level of the root-cause drill-down. */
@@ -79,6 +80,9 @@ export interface Finding {
   confidence: number;
   tone: Tone;
   investigation: Investigation;
+  /** Set when the investigation answers a question: the question and how it was interpreted. */
+  question?: string;
+  interpretation?: string;
 }
 
 export interface HealthComponent {

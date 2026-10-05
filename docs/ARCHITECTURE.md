@@ -14,7 +14,8 @@ ANALYTICS       lib/analytics       stats, metric registry, aggregation, contrib
   ↓
 INSIGHTS        lib/insights        the seven finding detectors, template narrative
                 lib/engine          the staged business scan
-                lib/ai              AIProvider abstraction (template provider today)
+                lib/ai              Ask the Business: intent → answer → grounded explanation; AIProvider
+                app/api/explain     server route that rewords a draft with a language model
   ↓
 VISUALIZATION   lib/visualization   particles, pure layout functions, state → ViewSpec mapping
                 components/visualization   WebGL point cloud (three.js / React Three Fiber)
@@ -76,8 +77,16 @@ deeper into the business.
 stages are `metric → segment… → cause → impact`, derived from the engine's
 drill steps (`lib/visualization/view.ts`).
 
+## Ask the Business
+
+`store.ask(question)` → `interpret` → `resolveIntent`. An `explain` intent
+produces a `Finding` (id `"ask"`) and opens the normal investigation flow; a
+`rank` or `overview` intent produces an `Answer` shown in the `answer` phase
+with its own `ViewSpec`. The model vendor is named only in
+`app/api/explain/route.ts` and `lib/ai/server/anthropic.ts`.
+
 ## Not built yet
 
-Ask the Business (natural-language questions), LLM-backed `AIProvider`,
-What-If simulator, Decision chapter, user-directed branching in the drill-down.
-`lib/ai/provider.ts` and `lib/simulation/` mark where they attach.
+What-If simulator, Decision chapter, user-directed branching in the
+drill-down, model-based intent parsing. `lib/simulation/` marks where the
+simulator attaches.

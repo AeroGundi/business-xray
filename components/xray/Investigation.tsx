@@ -1,14 +1,16 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { Finding } from "@/types/insights";
 import { DIM_LABEL, METRICS, type Metric } from "@/lib/analytics/metrics";
 import { formatChange, formatDelta, formatEur, formatP, formatPct, formatSignedEur, formatSignedPct, formatValue } from "@/lib/format";
+import { type HypothesisResult, openHypotheses, testHypothesis } from "@/lib/insights/hypotheses";
 import { CAVEAT, causeStatement, detectionSentence, nextQuestion, periodText, scopeLabel } from "@/lib/insights/narrative";
 import { stagesOf, type Stage } from "@/lib/visualization/view";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { ToneMark, toneName } from "@/components/ui/ToneMark";
 import { useXray } from "@/store/useXray";
+import { sourceLabel, useExplanation } from "./useExplanation";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const share = (x: number) => formatPct(Math.min(1, Math.max(0, x)));
@@ -51,6 +53,12 @@ function Headline({ f, stage }: { f: Finding; stage: Stage }) {
     const scoped = Object.keys(f.scope).length > 0;
     return (
       <>
+        {f.question && (
+          <p className="mb-6 text-sm leading-snug text-ink-2">
+            <span className="label mb-1.5 block">You asked</span>“{f.question}”
+            <span className="label mt-2 block tracking-wider normal-case">{f.interpretation}</span>
+          </p>
+        )}
         <p className="label">What changed?</p>
         <h2 className="display mt-4 text-[clamp(2rem,3.5vw,3.6rem)]">
           {metric.label}
@@ -89,7 +97,7 @@ function Headline({ f, stage }: { f: Finding; stage: Stage }) {
         {lead && lm && (
           <p className="figure mt-5 text-[clamp(3.2rem,6vw,6rem)]" style={tone}>{formatDelta(lead.change, lm.unit)}</p>
         )}
-        <p className="mt-5 max-w-[34ch] text-[0.98rem] leading-relaxed text-ink-2">{causeStatement(f)}</p>
+        <CauseExplanation f={f} />
       </>
     );
   }
@@ -107,6 +115,68 @@ function Headline({ f, stage }: { f: Finding; stage: Stage }) {
         {impact.annualised !== null && <> · {formatSignedEur(impact.annualised)} a year if it persists</>}
       </p>
     </>
+  );
+}
+
+/** The root-cause statement, optionally reworded by a language model within the grounding check. */
+function CauseExplanation({ f }: { f: Finding }) {
+  const inv = f.investigation;
+  const facts = [
+    detectionSentence(f),
+    scopeLabel(inv.leafScope),
+    ...inv.drivers.map((d) => {
+      const m = METRICS[d.metric];
+      return `${m.label}: ${formatValue(d.before, m.unit)} to ${formatValue(d.after, m.unit)}, change ${formatDelta(d.change, m.unit)}, ${formatP(d.p)}`;
+    }),
+  ];
+  const explanation = useExplanation({ topic: `Likely contributor to the change in ${METRICS[f.metric].noun}`, draft: causeStatement(f), facts });
+  return (
+    <>
+      <p className="mt-5 max-w-[34ch] text-[0.98rem] leading-relaxed text-ink-2">{explanation.text}</p>
+      <p className="label mt-3 tracking-wider normal-case">{sourceLabel(explanation)}</p>
+    </>
+  );
+}
+
+/** Hypotheses the engine has not already confirmed; each is tested on demand. */
+function Hypotheses({ f }: { f: Finding }) {
+  const data = useXray((s) => s.data);
+  const [results, setResults] = useState<Record<string, HypothesisResult>>({});
+  const open = openHypotheses(f);
+  if (!data || open.length === 0) return null;
+  return (
+    <div className="mt-7">
+      <p className="label">Other hypotheses</p>
+      <ul className="mt-3">
+        {open.map((h) => {
+          const r = results[h.metric];
+          const m: Metric = METRICS[h.metric];
+          return (
+            <li key={h.metric} className="border-t border-line py-2.5">
+              <div className="flex items-baseline justify-between gap-4">
+                <span className={`text-sm leading-snug ${r ? "text-ink" : "text-ink-2"}`}>{m.label}</span>
+                {r ? (
+                  <span className="label whitespace-nowrap text-ink">{r.supported ? "Supported" : "Not supported"}</span>
+                ) : (
+                  <button
+                    type="button" aria-label={`Test hypothesis: ${h.statement}`}
+                    onClick={() => setResults((prev) => ({ ...prev, [h.metric]: testHypothesis(data, f, h.metric) }))}
+                    className="label pointer-events-auto cursor-pointer whitespace-nowrap text-ink-2 transition-colors hover:text-ink"
+                  >
+                    [ Test ]
+                  </button>
+                )}
+              </div>
+              {r && (
+                <p className="label mt-1.5 tracking-wider normal-case">
+                  {formatValue(r.driver.before, m.unit)} → {formatValue(r.driver.after, m.unit)} · {formatP(r.driver.p)}
+                </p>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
@@ -204,6 +274,7 @@ function Evidence({ f, stage }: { f: Finding; stage: Stage }) {
           })}
         </ul>
         <p className="label mt-4 tracking-wider normal-case">{CAVEAT}</p>
+        <Hypotheses key={f.id + (f.question ?? "")} f={f} />
       </>
     );
   }
@@ -260,7 +331,7 @@ export function Investigation({ finding }: { finding: Finding }) {
     <section className={`stage-grid tone-${finding.tone}`}>
       <div className="stage-col">
         <button type="button" onClick={close} className="label pointer-events-auto mb-7 flex max-w-full cursor-pointer items-center gap-2 self-start whitespace-nowrap text-left transition-colors hover:text-ink">
-          ← Finding {pad(finding.index)} · {finding.title}
+          ← {finding.question ? "Your question" : `Finding ${pad(finding.index)} · ${finding.title}`}
           <ToneMark tone={finding.tone} size={7} />
         </button>
 
