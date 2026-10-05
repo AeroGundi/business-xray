@@ -83,6 +83,8 @@ export interface OrderRow {
   profit: number;
   promisedDays: number;
   deliveryDays: number;
+  /** 0 when no delivery was recorded for the order (uploaded data only); absent means delivered. */
+  delivered?: 0 | 1;
   returned: 0 | 1;
   /** First order of this customer. */
   isFirst: 0 | 1;
@@ -101,8 +103,20 @@ export interface MarketingRow {
   newCustomers: number;
 }
 
+/** What an uploaded dataset can support. Absent on the demo business, which supports everything. */
+export interface Availability {
+  /** Metric ids (lib/analytics/metrics) that can be computed from the data. */
+  metrics: string[];
+  /** Dimensions each fact table can be broken down by. */
+  dims: { orders: string[]; marketing: string[] };
+  /** Currency symbol used for display. */
+  currency: string;
+}
+
 export interface Dataset {
   company: string;
+  /** Present when the data was uploaded rather than generated. */
+  available?: Availability;
   seed: number;
   weeks: number;
   /** ISO date (Monday) of week 0. */

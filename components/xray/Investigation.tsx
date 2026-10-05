@@ -9,6 +9,7 @@ import { CAVEAT, causeStatement, detectionSentence, nextQuestion, periodText, sc
 import { stagesOf, type Stage } from "@/lib/visualization/view";
 import { Sparkline } from "@/components/ui/Sparkline";
 import { ToneMark, toneName } from "@/components/ui/ToneMark";
+import { canSimulate } from "@/lib/simulation/model";
 import { useXray } from "@/store/useXray";
 import { sourceLabel, useExplanation } from "./useExplanation";
 
@@ -142,7 +143,7 @@ function CauseExplanation({ f }: { f: Finding }) {
 function Hypotheses({ f }: { f: Finding }) {
   const data = useXray((s) => s.data);
   const [results, setResults] = useState<Record<string, HypothesisResult>>({});
-  const open = openHypotheses(f);
+  const open = data ? openHypotheses(f, data) : [];
   if (!data || open.length === 0) return null;
   return (
     <div className="mt-7">
@@ -309,6 +310,7 @@ function Evidence({ f, stage }: { f: Finding; stage: Stage }) {
 export function Investigation({ finding }: { finding: Finding }) {
   const stage = useXray((s) => s.stage);
   const { next, back, close, goTo, openWhatIf } = useXray.getState();
+  const simulable = useXray((s) => (s.data ? canSimulate(s.data) : false));
   const stages = stagesOf(finding);
   const current = stages[Math.min(stage, stages.length - 1)];
   const upcoming = stages[stage + 1];
@@ -361,9 +363,13 @@ export function Investigation({ finding }: { finding: Finding }) {
             <button type="button" className="command pointer-events-auto" onClick={next} autoFocus>
               {question} <span aria-hidden>→</span>
             </button>
-          ) : (
+          ) : simulable ? (
             <button type="button" className="command pointer-events-auto" onClick={() => openWhatIf(finding.id)} autoFocus>
               What can we do? <span aria-hidden>→</span>
+            </button>
+          ) : (
+            <button type="button" className="command pointer-events-auto" onClick={close} autoFocus>
+              Back to the scan <span aria-hidden>→</span>
             </button>
           )}
           <span className="label whitespace-nowrap max-lg:hidden">

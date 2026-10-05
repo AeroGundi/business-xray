@@ -1,7 +1,7 @@
 import type { Dataset } from "@/types/domain";
 import type { Finding, Health, HealthComponent, HealthPillar } from "@/types/insights";
 import { aggregatePairs, effectOf } from "./compare";
-import { METRICS, type Metric, periodsFor, weeklyByDim } from "./metrics";
+import { METRICS, type Metric, type MetricId, dimsOf, hasMetric, periodsFor, weeklyByDim } from "./metrics";
 import { clamp } from "./stats";
 
 /**
@@ -58,6 +58,12 @@ export const HEALTH_SPEC: Record<string, { label: string; components: Spec[] }> 
   },
 };
 
+/** Metrics (and dimensions) each component needs; a component the data cannot support is left out. */
+const NEEDS: Record<string, MetricId[]> = {
+  revenueGrowth: ["revenue"], acquisitionGrowth: ["acquisitions"], margin: ["margin"], discount: ["discount"], repurchase: ["repurchase"],
+  returns: ["returns"], onTime: ["onTime"], shippingShare: ["shipping"], anomalies: [], concentration: [],
+};
+
 /** Findings at or above this confidence count against the risk pillar. */
 export const RISK_CONFIDENCE = 0.95;
 
@@ -92,8 +98,12 @@ export function computeHealth(data: Dataset, findings: Finding[]): Health {
     concentration: hhi,
   };
 
+  const usable = (id: string) => NEEDS[id].every((m) => hasMetric(data, m)) && (id !== "concentration" || dimsOf(data, "orders").includes("country"));
+  const missing: string[] = [];
+
   const pillars: HealthPillar[] = Object.entries(HEALTH_SPEC).map(([id, spec]) => {
-    const components = spec.components.map((c) => {
+    for (const c of spec.components) if (!usable(c.id)) missing.push(c.label);
+    const components = spec.components.filter((c) => usable(c.id)).map((c) => {
       const value = values[c.id];
       const points = c.max * clamp((value - c.floor) / (c.target - c.floor), 0, 1);
       return { ...c, value, points };
@@ -105,5 +115,8 @@ export function computeHealth(data: Dataset, findings: Finding[]): Health {
     };
   });
 
-  return { score: Math.round(pillars.reduce((s, p) => s + p.points, 0)), max: 100, pillars };
+  // With every component present the maximum is 100; otherwise points are rescaled to the maximum that could be earned.
+  const earned = pillars.reduce((s, p) => s + p.points, 0);
+  const possible = pillars.reduce((s, p) => s + p.max, 0);
+  return { score: possible > 0 ? Math.round((100 * earned) / possible) : 0, max: 100, pillars, missing };
 }

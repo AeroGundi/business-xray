@@ -1,7 +1,7 @@
 import type { Dataset } from "@/types/domain";
 import type { Finding, Health } from "@/types/insights";
 import { computeHealth } from "@/lib/analytics/health";
-import { METRICS, type DimKey, aggregate, periodsFor, valueOf, weeklySeries } from "@/lib/analytics/metrics";
+import { METRICS, type DimKey, type MetricId, aggregate, dimsOf, hasMetric, periodsFor, valueOf, weeklySeries } from "@/lib/analytics/metrics";
 import { detectFindings } from "@/lib/insights/findings";
 import { formatEur, formatValue } from "@/lib/format";
 
@@ -31,12 +31,23 @@ function recentValue(data: Dataset, id: keyof typeof METRICS): number {
   return valueOf(metric, aggregate(weeklySeries(data, metric), recent), recent.to - recent.from);
 }
 
+/** A readout line for a metric, or nothing when the data cannot support it. */
+const line = (data: Dataset, id: MetricId, text: (value: string) => string): string[] =>
+  hasMetric(data, id) ? [text(formatValue(recentValue(data, id), METRICS[id].unit))] : [];
+
+/** The dimension a stage organises the visualization by, falling back when the data lacks it. */
+export const stageDim = (data: Dataset, stage: ScanStage): DimKey | null => {
+  const dims = dimsOf(data, "orders");
+  return dims.includes(stage.dim) ? stage.dim : (dims[0] ?? null);
+};
+
 export const SCAN_STAGES: ScanStage[] = [
   {
     id: "customers", label: "Customers", dim: "segment",
     run: (data) => {
       const active = new Set(data.orders.filter((o) => o.week >= data.weeks - 26).map((o) => o.customerId)).size;
-      return [`${count(data.customers.length)} customers`, `${count(active)} active in 26 weeks`, `${formatValue(recentValue(data, "repurchase"), "pct")} repeat rate`];
+      if (!hasMetric(data, "repurchase")) return ["customers are not identified in this data"];
+      return [`${count(data.customers.length)} customers`, `${count(active)} active in 26 weeks`, ...line(data, "repurchase", (v) => `${v} repeat rate`)];
     },
   },
   {
@@ -45,15 +56,31 @@ export const SCAN_STAGES: ScanStage[] = [
   },
   {
     id: "products", label: "Products", dim: "category",
-    run: (data) => [`${data.products.length} products`, `${new Set(data.products.map((p) => p.category)).size} categories`, `${formatValue(recentValue(data, "returns"), "pct")} returned`],
+    run: (data) => {
+      const categories = new Set(data.products.map((p) => p.category)).size;
+      return [
+        ...(dimsOf(data, "orders").includes("product") ? [`${count(data.products.length)} products`] : ["products are not identified in this data"]),
+        ...(dimsOf(data, "orders").includes("category") ? [`${categories} categories`] : []),
+        ...line(data, "returns", (v) => `${v} returned`),
+      ];
+    },
   },
   {
     id: "operations", label: "Operations", dim: "country",
-    run: (data) => [`${data.countries.length} countries`, `${formatValue(recentValue(data, "delivery"), "days")} average delivery`, `${formatValue(recentValue(data, "onTime"), "pct")} on time`],
+    run: (data) => [
+      ...(dimsOf(data, "orders").includes("country") ? [`${data.countries.length} countries`] : []),
+      ...line(data, "delivery", (v) => `${v} average delivery`),
+      ...line(data, "onTime", (v) => `${v} on time`),
+      ...(hasMetric(data, "delivery") ? [] : ["no delivery data"]),
+    ],
   },
   {
     id: "financials", label: "Financials", dim: "country",
-    run: (data) => [`${formatEur(recentValue(data, "revenue"))} weekly revenue`, `${formatValue(recentValue(data, "margin"), "pct")} contribution margin`, `${formatEur(recentValue(data, "cac"))} acquisition cost`],
+    run: (data) => [
+      `${formatEur(recentValue(data, "revenue"))} weekly revenue`,
+      ...line(data, "margin", (v) => `${v} contribution margin`),
+      ...line(data, "cac", (v) => `${v} acquisition cost`),
+    ],
   },
   {
     id: "risk", label: "Risk", dim: "country",

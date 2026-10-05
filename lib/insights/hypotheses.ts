@@ -21,11 +21,11 @@ export interface HypothesisResult {
 }
 
 /** Candidates the root-cause stage did not already report as supporting evidence. */
-export function openHypotheses(finding: Finding): Hypothesis[] {
+export function openHypotheses(finding: Finding, data: Dataset): Hypothesis[] {
   const target: Metric = METRICS[finding.metric];
   const reported = new Set(finding.investigation.drivers.map((d) => d.metric));
   const where = scopePhrase(finding.investigation.leafScope);
-  return driverCandidates(target)
+  return driverCandidates(target, data)
     .filter((id) => !reported.has(id))
     .map((id) => ({ metric: id, statement: `A change in ${METRICS[id].noun} may be contributing to the move in ${target.noun} for ${where}.` }));
 }

@@ -33,7 +33,7 @@ export function HealthScore({ health }: { health: Health }) {
               className="group pointer-events-auto flex cursor-pointer flex-col gap-2.5 text-left"
             >
               <span className="flex h-9 items-end gap-[2px]" aria-hidden>
-                {Array.from({ length: p.max }, (_, i) => (
+                {Array.from({ length: p.max || 1 }, (_, i) => (
                   <span
                     key={i}
                     className="flex-1 bg-ink transition-[height,opacity] duration-700 ease-xray"
@@ -44,7 +44,7 @@ export function HealthScore({ health }: { health: Health }) {
               <span className={`label text-[9px] tracking-[0.02em] sm:text-[10px] sm:tracking-[0.06em] transition-colors ${active ? "text-ink" : "group-hover:text-ink-2"}`}>
                 <span className="block truncate">{p.label}</span>
                 <span className="mt-0.5 block tracking-normal">
-                  {p.points.toFixed(0)} / {p.max}
+                  {p.max > 0 ? `${p.points.toFixed(0)} / ${p.max}` : "no data"}
                 </span>
               </span>
             </button>
@@ -71,7 +71,14 @@ export function HealthScore({ health }: { health: Health }) {
             ))}
           </dl>
         ) : (
-          <p className="label">Select a pillar to see what the score is made of</p>
+          <>
+            <p className="label">Select a pillar to see what the score is made of</p>
+            {health.missing.length > 0 && (
+              <p className="label mt-3 normal-case tracking-wider">
+                Scored on the measures your data supports and rescaled to 100. Not measured: {health.missing.join(", ").toLowerCase()}.
+              </p>
+            )}
+          </>
         )}
       </div>
     </div>

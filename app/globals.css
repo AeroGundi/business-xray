@@ -306,3 +306,183 @@ body {
 .lever:focus-visible::-moz-range-thumb {
   box-shadow: 0 0 0 3px var(--bg), 0 0 0 4px var(--ink);
 }
+
+/*
+ * Ingestion flow: connecting a business to the instrument.
+ * A single scrolling column over the dormant visualization.
+ */
+@layer components {
+.ingest {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  pointer-events: auto;
+  padding: 104px var(--gutter) 120px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+  background: linear-gradient(to bottom, rgba(6, 7, 10, 0.86), rgba(6, 7, 10, 0.94));
+}
+.ingest-col {
+  width: 100%;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+/* Drop zone: a framed aperture with corner marks rather than a card. */
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 300px;
+  padding: 40px 24px;
+  border: 1px solid var(--line);
+  transition: border-color 400ms, background-color 400ms;
+}
+.dropzone::before,
+.dropzone::after {
+  content: "";
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--ink);
+  transition: width 500ms var(--ease), height 500ms var(--ease);
+}
+.dropzone::before {
+  top: -1px;
+  left: -1px;
+  border-right: 0;
+  border-bottom: 0;
+}
+.dropzone::after {
+  bottom: -1px;
+  right: -1px;
+  border-left: 0;
+  border-top: 0;
+}
+.dropzone[data-active="true"] {
+  border-color: var(--line-strong);
+  background: rgba(143, 184, 255, 0.05);
+}
+.dropzone[data-active="true"]::before,
+.dropzone[data-active="true"]::after {
+  width: 44px;
+  height: 44px;
+}
+
+/* Confidence: five marks, filled in proportion. Always paired with the number. */
+.meter {
+  display: inline-flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+.meter > span {
+  width: 3px;
+  height: 11px;
+  background: var(--ink);
+  opacity: 0.16;
+}
+.meter > span[data-on="true"] {
+  opacity: 0.95;
+  background: var(--tone, var(--ink));
+}
+
+.field-select {
+  appearance: none;
+  max-width: 100%;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: -0.01em;
+  padding: 4px 22px 4px 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-3) 50%), linear-gradient(135deg, var(--ink-3) 50%, transparent 50%);
+  background-position: calc(100% - 9px) 55%, calc(100% - 4px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  transition: border-color 300ms;
+}
+.field-select:hover,
+.field-select:focus-visible {
+  border-color: var(--ink);
+  outline: none;
+}
+.field-select option {
+  background: var(--bg-raised);
+  color: var(--ink);
+}
+.field-select[data-empty="true"] {
+  color: var(--ink-3);
+}
+
+.text-input {
+  background: transparent;
+  color: var(--ink);
+  font-size: 14px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  min-width: 0;
+}
+.text-input:focus-visible {
+  outline: none;
+  border-color: var(--ink);
+}
+
+/* Small tables showing the user's own rows. */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  white-space: nowrap;
+}
+.data-table th {
+  text-align: left;
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 18px 8px 0;
+}
+.data-table td {
+  padding: 6px 18px 6px 0;
+  border-top: 1px solid var(--line);
+  color: var(--ink-2);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* A step still in progress. */
+.dots::after {
+  content: "";
+  animation: dots 1.2s steps(4, end) infinite;
+}
+@keyframes dots {
+  25% { content: "."; }
+  50% { content: ".."; }
+  75% { content: "..."; }
+}
+
+/* The line that links two files in the relationship view. */
+.link-line {
+  flex: 1;
+  min-width: 24px;
+  height: 1px;
+  background: var(--line-strong);
+  transform-origin: left;
+  animation: draw 900ms var(--ease) both;
+}
+@keyframes draw {
+  from { transform: scaleX(0); }
+}
+[data-reduced-motion="true"] .link-line,
+[data-reduced-motion="true"] .dots::after {
+  animation: none;
+}
+}

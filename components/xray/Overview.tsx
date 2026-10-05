@@ -1,5 +1,6 @@
 "use client";
 
+import { canSimulate } from "@/lib/simulation/model";
 import { useXray } from "@/store/useXray";
 import { AskBar } from "./AskBar";
 import { FindingsList } from "./FindingsList";
@@ -8,6 +9,7 @@ import { HealthScore } from "./HealthScore";
 export function Overview() {
   const health = useXray((s) => s.health);
   const findings = useXray((s) => s.findings);
+  const data = useXray((s) => s.data);
   if (!health) return null;
   return (
     <section className="stage-grid">
@@ -22,9 +24,15 @@ export function Overview() {
       </div>
       <div className="stage-col">
         <FindingsList findings={findings} />
-        <button type="button" className="command pointer-events-auto mt-4 self-start" onClick={() => useXray.getState().openWhatIf()}>
-          What if? <span aria-hidden>→</span>
-        </button>
+        {data && canSimulate(data) ? (
+          <button type="button" className="command pointer-events-auto mt-4 self-start" onClick={() => useXray.getState().openWhatIf()}>
+            What if? <span aria-hidden>→</span>
+          </button>
+        ) : (
+          <p className="label mt-6 max-w-xs normal-case tracking-wider">
+            Scenario simulation is unavailable: it needs cost, marketing, delivery and returns data.
+          </p>
+        )}
       </div>
     </section>
   );

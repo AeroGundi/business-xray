@@ -80,7 +80,7 @@ describe("grounding", () => {
 describe("hypotheses", () => {
   const revenue = findings.find((f) => f.id === "revenue")!;
   it("offers only what the root-cause stage has not already confirmed", () => {
-    const open = openHypotheses(revenue).map((h) => h.metric);
+    const open = openHypotheses(revenue, data).map((h) => h.metric);
     expect(open).not.toContain("delivery");
     expect(open).toContain("discount");
   });

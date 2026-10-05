@@ -294,3 +294,139 @@ interactions, accuracy against ground truth, stated confidence, SUS
 
 `tests/engine.test.ts` already verifies that the engine recovers the planted
 causes from data alone, across several seeds.
+
+## 12. Data ingestion (`lib/ingestion`)
+
+Uploaded files are turned into the dataset the engine reads in six steps.
+Each is deterministic; none uses a language model.
+
+### 12.1 Column profiling (`profile.ts`)
+
+For every column, on up to 4,000 evenly spaced rows: share of values that
+parse as a date, a number, an integer, a known country (English or Spanish
+name, ISO-2/ISO-3 code) or a code-like token; minimum, median, maximum; mean
+length. Cardinality (`distinct / filled`) is counted on **all** rows, because
+a sample makes repeated keys look unique. Day/month order of numeric dates is
+decided per column by any value whose first or second part exceeds 12, and
+reported when it cannot be decided.
+
+### 12.2 Schema detection (`detect.ts`)
+
+For each (column, canonical field) pair:
+
+| Evidence | Score | How |
+|---|---|---|
+| name | 0–1 | header normalised (case, accents, punctuation, camelCase) and compared with the field's English/Spanish vocabulary: exact or same tokens = 1; vocabulary term contained in the header = 0.6 + 0.3·(term tokens / header tokens); header contained in a term = 0.55 + 0.3·ratio; otherwise 0.75 × Sørensen–Dice bigram similarity if ≥ 0.72 |
+| type | 0–1 | share of values with the type the field requires; an incompatible type **vetoes** the pair |
+| value | 0–1 | field-specific behaviour: uniqueness for keys, small positive integers for quantity, 0–100 for discounts, country match rate, low cardinality for categories; 0.6 when nothing can be said |
+
+`confidence = 0.62·name + 0.20·type + 0.18·value`, capped at 0.99.
+
+Pairs scoring ≥ 0.50 are assigned greedily in order of confidence, one column
+per field. Three fall-backs map columns with no usable name, always below the
+confirmation threshold: a column that is ≥ 90% countries (0.70); the only
+date column of a file still missing a date (0.70); and a free column whose
+values are ≥ 80% contained in the key column of another file
+(0.55 + 0.24·containment) — the relationship itself is the evidence.
+
+A file is recognised as the table whose required and core fields it covers
+best (confidence-weighted, required ×3, core ×2), with +0.2 when the file
+name suggests the table, ×0.6 when a required field is missing and the name
+gives no hint, and ×0.4 when the table's own key would repeat in the file (a
+customer file lists each customer once). Each table is given to one file.
+
+Bands: high ≥ 95%, medium 80–94%, low < 80%. A low mapping, or one where a
+second column scores within 0.08 for the same field, must be confirmed or
+changed by the user before the flow continues.
+
+### 12.3 Typed extraction and row rules (`extract.ts`)
+
+Each mapped cell is read as its field's type. A row is set aside — counted
+and shown, never silently repaired — when a required field is empty or
+unreadable, a date lies before 1990 or in the future, a quantity is ≤ 0, an
+amount is negative, the row is identical to an earlier one, or it repeats
+the key of a reference table. Unreadable values in non-required fields
+become empty.
+
+Relationships are measured on the extracted records: for each link
+(orders→customers, orders→products, delivery→orders, returns→orders,
+marketing→customers by channel) the share of child rows whose key exists in
+the parent. Identifiers are compared ignoring case and surrounding space.
+
+### 12.4 Normalisation conventions (`normalize.ts`)
+
+- **Time.** Weeks are 7-day blocks ending on the last order date; a leading
+  partial week is dropped. At least 41 weeks are required: two 10-week
+  windows plus the 12 earlier window placements the anomaly detector needs
+  for its null distribution (§3).
+- **Revenue.** `quantity × unit_price − discount`; when only a line total
+  exists it is taken as revenue. The discount column is read as a fraction
+  (max ≤ 1), a percentage (header says so, or values ≤ 100 that are ≥ 90%
+  multiples of 0.5) or an amount; the reading is reported.
+- **Profit.** `revenue − cost − shipping`, or `−(2·shipping + 0.25·cost)`
+  for a returned order — the demo business's convention, stated to the user
+  as an estimate. Profit is reported only if ≥ 80% of revenue has a known
+  cost; remaining lines take the average cost-to-list ratio and are counted.
+- **Delivery.** Days from order to delivery. Without a promised date, the
+  promise is the median delivery time of the order's country, so "on time"
+  means "not more than a day slower than usual". Orders with no delivery are
+  excluded from delivery metrics rather than counted as zero. Delivery
+  metrics need ≥ 30% of orders matched.
+- **Customers.** Acquired at the signup date if given, else at the first
+  order in the file (which overstates new customers in the first weeks, and
+  is reported). Repeat purchase uses the same 5-week window as §2.
+- **Marketing.** Weekly spend by channel (and country when present), joined
+  with customers acquired through the same channel. CAC is reported only if
+  ≥ 50% of spend is on channels that customers are attributed to.
+- **Names.** Countries map to a canonical English name; values differing only
+  in case, accents or punctuation are merged, and the merge is reported.
+
+### 12.5 Data readiness (`readiness.ts`)
+
+`readiness = Σ wᵢ · dimensionᵢ`
+
+| Dimension | Weight | Definition |
+|---|---|---|
+| Data coverage | 0.25 | template fields present, weighted required 3 · core 2 · extra 1 |
+| Data quality | 0.25 | mean of completeness (filled cells), validity (cells readable as their type) and usable rows (not set aside) |
+| Relationships | 0.15 | mean, over detected links, of the share of records that connect |
+| Temporal coverage | 0.15 | weeks / 104, capped at 1 |
+| Analytical coverage | 0.20 | mean over the capability matrix: available 1, limited 0.5, unavailable 0 |
+
+A dimension that does not apply (relationships, when a single file is
+uploaded) is excluded and the remaining weights are rescaled. The weights
+are a design choice, not an estimate; they are constants in the module and
+shown next to each dimension in the interface.
+
+The capability matrix (`capabilitiesOf`) lists sixteen analyses with the
+data condition for each (e.g. profitability needs cost coverage; marketing
+efficiency needs spend attributable to acquisition channels; anomaly
+detection is "limited" under 52 weeks because seasonality cannot be
+separated from change).
+
+### 12.6 Effect on the analytical engine
+
+With uploaded data the engine is unchanged except for availability checks:
+finding detectors, drill dimensions and driver candidates are restricted to
+what `Dataset.available` lists. The health score leaves out components it
+cannot measure and rescales the earned points to 100
+(`score = 100 · earned / attainable`); the omitted components are named
+beside the score. The What-If model requires all of margin, CAC, delivery,
+returns and repeat rate, and is otherwise not offered.
+
+### 12.7 Verification (`tests/ingestion.test.ts`)
+
+Seven scenarios, built by rewriting the demo business in template format:
+(A) perfect data — the engine must return the same findings, the same
+root-cause segment and lead driver, and a health score within 3 points of
+the original (a gap of up to 3 points was observed; it has not been traced,
+though the export does round delivery times to whole days); (B) Spanish headers in a single file; (C) different naming
+with a line total instead of a price; (D) optional files missing;
+(E) missing customer ID, missing order date, too little history; (F) dirty
+data — duplicates, empty and unreadable dates, impossible quantities, mixed
+date formats, mixed country spellings, a truncated customer file, each with
+an exact expected count; (G) two candidate date columns, and columns mapped
+from values or relationships alone.
+
+Limitation: the detection vocabulary and thresholds were tuned on these
+scenarios, not validated on a corpus of real business exports.

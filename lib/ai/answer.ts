@@ -7,7 +7,7 @@ import { formatChange, formatPct, formatSignedEur, formatValue } from "@/lib/for
 import { scopeLabel } from "@/lib/insights/narrative";
 import { investigate } from "@/lib/root-cause/investigate";
 import { HUE, type ViewSpec } from "@/lib/visualization/layout";
-import { describeIntent, interpret, scopeText, SUGGESTIONS, type Intent } from "./intent";
+import { describeIntent, interpret, scopeText, suggestionsFor, type Intent } from "./intent";
 
 /**
  * Steps 2–3 of "Ask the Business": intent → analytical function → structured
@@ -45,12 +45,12 @@ const MIN_ROWS = 60;
 
 const sameScope = (a: object, b: object) => JSON.stringify(Object.entries(a).sort()) === JSON.stringify(Object.entries(b).sort());
 
-function unknown(question: string, reason: string): Answer {
+function unknown(data: Dataset, question: string, reason: string): Answer {
   return {
     question, interpretation: describeIntent({ kind: "unknown", reason }), kind: "unknown",
     explanation: `${reason} I can only answer questions that map to an analysis of the data: how a metric changed, where, and what moved with it.`,
     facts: [], rowsTitle: "Questions I can answer",
-    rows: SUGGESTIONS.map((s) => ({ label: s, value: "" })),
+    rows: suggestionsFor(data).map((s) => ({ label: s, value: "" })),
     view: null, next: null,
   };
 }
@@ -65,7 +65,7 @@ function explain(data: Dataset, findings: Finding[], question: string, intent: E
   const comparison: Comparison = { kind: "time", periods: periodsFor(metric, data.weeks) };
   const pair = aggregatePairs(data, metric, intent.scope, comparison).total;
   if (pair.a.n + pair.b.n < MIN_ROWS) {
-    return { type: "answer", answer: unknown(question, `There is too little data for ${scopeText(intent.scope)} to analyse ${metric.noun} reliably.`) };
+    return { type: "answer", answer: unknown(data, question, `There is too little data for ${scopeText(intent.scope)} to analyse ${metric.noun} reliably.`) };
   }
   const effect = effectOf(metric, pair, comparison);
   const shift = detectShift(metric, weeklySeries(data, metric, intent.scope), comparison.periods);
@@ -88,7 +88,7 @@ function rank(data: Dataset, question: string, intent: Extract<Intent, { kind: "
   const comparison: Comparison = { kind: "time", periods: periodsFor(metric, data.weeks) };
   const split = splitBy(data, metric, intent.scope, comparison, intent.dim);
   const members = split.members.filter((m) => m.n >= MIN_ROWS);
-  if (members.length < 2) return unknown(question, `There are not enough ${DIM_LABEL[intent.dim].toLowerCase()} members with data to compare.`);
+  if (members.length < 2) return unknown(data, question, `There are not enough ${DIM_LABEL[intent.dim].toLowerCase()} members with data to compare.`);
 
   // Worst first: lowest value when higher is better, highest when lower is better.
   const direction = metric.polarity < 0 ? -1 : 1;
@@ -169,7 +169,7 @@ export function resolveIntent(data: Dataset, findings: Finding[], question: stri
     case "overview":
       return { type: "answer", answer: overview(findings, question) };
     default:
-      return { type: "answer", answer: unknown(question, intent.reason) };
+      return { type: "answer", answer: unknown(data, question, intent.reason) };
   }
 }
 

@@ -38,18 +38,20 @@ const mkt = (
 ): Metric => ({ id, label, noun, source: "marketing", unit, polarity, num, den });
 
 const one = () => 1;
+/** Orders with no recorded delivery are left out of delivery metrics. */
+const delivered = (r: OrderRow) => r.delivered ?? 1;
 
 export const METRICS = {
   revenue: order("revenue", "Revenue", "revenue", "eur", 1, (r) => r.revenue),
   orders: order("orders", "Orders", "order volume", "count", 1, one),
   margin: order("margin", "Contribution margin", "contribution margin", "pct", 1, (r) => r.profit, (r) => r.revenue),
-  delivery: order("delivery", "Delivery time", "delivery time", "days", -1, (r) => r.deliveryDays, one),
+  delivery: order("delivery", "Delivery time", "delivery time", "days", -1, (r) => (r.delivered === 0 ? 0 : r.deliveryDays), delivered),
   discount: order("discount", "Discount depth", "discount depth", "pct", 0, (r) => r.discountAmount, (r) => r.listAmount),
   returns: order("returns", "Return rate", "return rate", "pct", -1, (r) => r.returned, one),
   repurchase: order("repurchase", "Repeat purchase rate", "repeat purchase rate", "pct", 1, (r) => r.repurchased, (r) => r.eligible, 5),
   newShare: order("newShare", "New-customer share", "share of first-time orders", "pct", 0, (r) => r.isFirst, one),
   aov: order("aov", "Order value", "average order value", "eur", 1, (r) => r.revenue, one),
-  onTime: order("onTime", "On-time delivery", "on-time delivery rate", "pct", 1, (r) => (r.deliveryDays <= r.promisedDays + 1 ? 1 : 0), one),
+  onTime: order("onTime", "On-time delivery", "on-time delivery rate", "pct", 1, (r) => (r.delivered !== 0 && r.deliveryDays <= r.promisedDays + 1 ? 1 : 0), delivered),
   shipping: order("shipping", "Shipping cost per order", "shipping cost per order", "eur", -1, (r) => r.shipping, one),
   cac: mkt("cac", "Acquisition cost", "customer acquisition cost", "eur", -1, (r) => r.spend, (r) => r.newCustomers),
   spend: mkt("spend", "Marketing spend", "marketing spend", "eur", 0, (r) => r.spend),
@@ -66,6 +68,13 @@ export const DIMS: Record<SourceId, DimKey[]> = {
 export const DIM_LABEL: Record<DimKey, string> = {
   country: "Country", category: "Category", product: "Product", segment: "Customer segment", channel: "Channel",
 };
+
+/** Whether the dataset can support a metric. The demo business supports all of them. */
+export const hasMetric = (data: Dataset, id: MetricId): boolean => !data.available || data.available.metrics.includes(id);
+
+/** Dimensions a fact table can be broken down by in this dataset. */
+export const dimsOf = (data: Dataset, source: SourceId): DimKey[] =>
+  data.available ? DIMS[source].filter((d) => data.available!.dims[source].includes(d)) : DIMS[source];
 
 export const rowsOf = (data: Dataset, source: SourceId): FactRow[] => (source === "orders" ? data.orders : data.marketing);
 

@@ -1,8 +1,9 @@
 import type { Dataset } from "@/types/domain";
 import type { Finding, FindingId } from "@/types/insights";
 import { aggregatePairs } from "@/lib/analytics/compare";
-import { METRICS, type Metric, type MetricId, periodsFor } from "@/lib/analytics/metrics";
+import { METRICS, type Metric, type MetricId, hasMetric, periodsFor } from "@/lib/analytics/metrics";
 import { clamp } from "@/lib/analytics/stats";
+import { currency } from "@/lib/format";
 import { type Estimate, estimateLatenessOnRepeat, estimateLatenessOnReturns, estimateSpendElasticity, lateness } from "./estimate";
 
 /**
@@ -100,6 +101,10 @@ const assumed = (id: string, label: string, value: number, note: string): Parame
 /** Metrics whose finding impact is revenue; the rest (margin, CAC) are pure profit effects. */
 const REVENUE_IMPACT: MetricId[] = ["revenue", "repurchase"];
 
+/** The What-If model needs every one of its drivers to be observable in the data. */
+export const SIMULATION_NEEDS: MetricId[] = ["margin", "cac", "delivery", "returns", "repurchase"];
+export const canSimulate = (data: Dataset): boolean => SIMULATION_NEEDS.every((m) => hasMetric(data, m));
+
 export function calibrate(data: Dataset, findings: Finding[]): Model {
   const recent = (id: MetricId) => {
     const metric: Metric = METRICS[id];
@@ -151,8 +156,8 @@ export function calibrate(data: Dataset, findings: Finding[]): Model {
         "Linear probability model on order level with segment fixed effects."),
       lateOnReturns: estimated("lateOnReturns", "Return rate per day late", estimateLatenessOnReturns(data),
         "Linear probability model on order level with category fixed effects."),
-      retentionResponse: assumed("retentionResponse", "Repeat-rate gain per √(€1k/week) of retention budget", 0.003,
-        "No retention programme exists in the data. Assumes diminishing returns: €4k/week buys +0.6 pt."),
+      retentionResponse: assumed("retentionResponse", `Repeat-rate gain per √(${currency()}1k/week) of retention budget`, 0.003,
+        `No retention programme exists in the data. Assumes diminishing returns: ${currency()}4k/week buys +0.6 pt.`),
       expediteCost: assumed("expediteCost", "Shipping cost per day saved, per order", 0.9,
         "Carrier pricing is not in the data. Slower delivery is assumed to save nothing."),
     },

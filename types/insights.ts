@@ -109,4 +109,6 @@ export interface Health {
   score: number;
   max: number;
   pillars: HealthPillar[];
+  /** Components left out because the data cannot support them (uploaded data only). */
+  missing: string[];
 }

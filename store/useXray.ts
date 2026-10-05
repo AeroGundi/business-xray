@@ -9,9 +9,10 @@ import { describeIntent } from "@/lib/ai/intent";
 import { SCAN_STAGES, type ScanContext } from "@/lib/engine/scan";
 import { calibrate, type Levers, type Model, NO_CHANGE, presets, sameLevers, type Scenario } from "@/lib/simulation/model";
 import { evaluate, recommend } from "@/lib/simulation/decision";
+import { setCurrency } from "@/lib/format";
 import { stagesOf } from "@/lib/visualization/view";
 
-export type Phase = "landing" | "scanning" | "overview" | "answer" | "investigating" | "whatif" | "decision";
+export type Phase = "landing" | "connect" | "scanning" | "overview" | "answer" | "investigating" | "whatif" | "decision";
 
 interface XrayState {
   data: Dataset | null;
@@ -37,6 +38,12 @@ interface XrayState {
   scenarios: Scenario[];
   reducedMotion: boolean;
   init: () => void;
+  /** Opens the data ingestion flow. */
+  connect: () => void;
+  /** Replaces the business under analysis and scans it. */
+  load: (data: Dataset) => void;
+  /** Loads the demo business (again, if uploaded data replaced it) and scans it. */
+  loadDemo: () => void;
   startScan: () => Promise<void>;
   open: (id: FindingId) => void;
   ask: (question: string) => void;
@@ -78,6 +85,21 @@ export const useXray = create<XrayState>((set, get) => ({
 
   init: () => {
     if (!get().data) set({ data: generateDataset() });
+  },
+
+  connect: () => {
+    get().restart();
+    set({ phase: "connect" });
+  },
+  load: (data) => {
+    get().restart();
+    setCurrency(data.available?.currency ?? "€");
+    set({ data, findings: [], health: null });
+    void get().startScan();
+  },
+  loadDemo: () => {
+    const current = get().data;
+    get().load(current && !current.available ? current : generateDataset());
   },
 
   startScan: async () => {

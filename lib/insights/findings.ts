@@ -1,7 +1,7 @@
 import type { Dataset } from "@/types/domain";
 import type { Finding, FindingId, Tone } from "@/types/insights";
 import { type Comparison, aggregatePairs, effectOf } from "@/lib/analytics/compare";
-import { DIMS, METRICS, type DimKey, type Metric, type MetricId, type Scope, periodsFor, valueOf, weeklyByDim, weeklySeries } from "@/lib/analytics/metrics";
+import { METRICS, dimsOf, hasMetric, type DimKey, type Metric, type MetricId, type Scope, periodsFor, valueOf, weeklyByDim, weeklySeries } from "@/lib/analytics/metrics";
 import { type Shift, detectOutliers, detectShift } from "@/lib/anomaly/detect";
 import { investigate } from "@/lib/root-cause/investigate";
 
@@ -34,10 +34,12 @@ export function scanShifts(data: Dataset, metric: Metric, pairs: [DimKey, DimKey
     out.push({ scope, shift, coverage, score: shift.z * Math.sqrt(coverage) });
   };
   push({}, totalSeries);
-  for (const dim of DIMS[metric.source]) {
+  const dims = dimsOf(data, metric.source);
+  for (const dim of dims) {
     for (const [member, series] of weeklyByDim(data, metric, dim)) push({ [dim]: member }, series);
   }
   for (const [d1, d2] of pairs) {
+    if (!dims.includes(d1) || !dims.includes(d2)) continue;
     for (const member of weeklyByDim(data, metric, d1).keys()) {
       for (const [m2, series] of weeklyByDim(data, metric, d2, { [d1]: member })) push({ [d1]: member, [d2]: m2 }, series);
     }
@@ -63,6 +65,7 @@ function toneOf(metric: Metric, change: number, confidence: number): Tone {
 function temporalFinding(
   data: Dataset, id: FindingId, title: string, metricId: MetricId, direction: 1 | -1, slicesOnly = false, pairs: [DimKey, DimKey][] = [],
 ): Omit<Finding, "index"> | null {
+  if (!hasMetric(data, metricId)) return null;
   const metric: Metric = METRICS[metricId];
   let candidates = scanShifts(data, metric, pairs);
   if (slicesOnly) candidates = candidates.filter((c) => Object.keys(c.scope).length > 0);
@@ -79,6 +82,7 @@ function temporalFinding(
 
 /** Cross-sectional outlier: the member of `dim` furthest below its peers on a ratio metric. */
 function peerFinding(data: Dataset, id: FindingId, title: string, metricId: MetricId, dim: DimKey): Omit<Finding, "index"> | null {
+  if (!hasMetric(data, metricId) || !dimsOf(data, METRICS[metricId].source).includes(dim)) return null;
   const metric: Metric = METRICS[metricId];
   const periods = periodsFor(metric, data.weeks);
   const window = { from: periods.baseline.from, to: periods.recent.to };

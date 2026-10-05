@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "motion/react";
-import { SCAN_STAGES } from "@/lib/engine/scan";
+import { SCAN_STAGES, stageDim } from "@/lib/engine/scan";
 import { METRICS } from "@/lib/analytics/metrics";
 import { formatChange } from "@/lib/format";
 import { causeStatement, headline } from "@/lib/insights/narrative";
@@ -13,6 +13,7 @@ import { project } from "@/lib/simulation/model";
 import { investigationView, overviewView, whatIfView } from "@/lib/visualization/view";
 import { activeFinding, useXray } from "@/store/useXray";
 import { AnswerView } from "./AnswerView";
+import { Connect } from "@/components/ingestion/Connect";
 import { Chrome } from "./Chrome";
 import { Decision } from "./Decision";
 import { Investigation } from "./Investigation";
@@ -59,9 +60,9 @@ export function Experience() {
   // The spec only changes when its quantised values do, so slider drags retarget in steps.
   const simKey = JSON.stringify(simView);
 
-  const scanDim = SCAN_STAGES[scanIndex].dim;
+  const scanDim = data ? stageDim(data, SCAN_STAGES[scanIndex]) : null;
   const spec: ViewSpec = useMemo(() => {
-    if (phase === "scanning") return { mode: "cluster", scope: {}, dim: scanDim, hue: 0 };
+    if (phase === "scanning" && scanDim) return { mode: "cluster", scope: {}, dim: scanDim, hue: 0 };
     if (phase === "overview" && particles) return overviewView(findings, findings.find((f) => f.id === hoverId) ?? null, particles);
     if (phase === "answer" && answer && particles) return answer.view ?? overviewView(findings, null, particles);
     if (phase === "investigating" && finding) return investigationView(finding, stage);
@@ -71,7 +72,8 @@ export function Experience() {
 
   // Text equivalent of the current view for assistive technology.
   const summary = useMemo(() => {
-    if (phase === "landing") return "Business X-Ray. Ready to scan NOVA.";
+    if (phase === "landing") return "Business X-Ray. Explore the demo business or analyse your own.";
+    if (phase === "connect") return "Connect your data. Upload your files or use a template.";
     if (phase === "scanning") return `Scanning ${SCAN_STAGES[scanIndex].label}.`;
     if (phase === "overview") {
       return `Scan complete. ${findings.length} findings: ${findings.map((f) => `${headline(f)} ${formatChange(f.effect.change, f.effect.changePct, METRICS[f.metric].unit)}`).join("; ")}.`;
@@ -105,6 +107,7 @@ export function Experience() {
           transition={{ duration: reducedMotion ? 0 : 0.55, ease: [0.22, 1, 0.36, 1] }}
         >
           {phase === "landing" && <Landing />}
+          {phase === "connect" && <Connect />}
           {phase === "scanning" && <ScanReadout />}
           {phase === "overview" && <Overview />}
           {phase === "answer" && answer && <AnswerView answer={answer} />}

@@ -1,5 +1,5 @@
 import type { Dataset } from "@/types/domain";
-import { DIM_LABEL, METRICS, type DimKey, type MetricId, type Scope } from "@/lib/analytics/metrics";
+import { DIM_LABEL, METRICS, type DimKey, type MetricId, type Scope, dimsOf, hasMetric } from "@/lib/analytics/metrics";
 
 /**
  * Step 1 of "Ask the Business": question → intent.
@@ -81,7 +81,7 @@ export function detectScope(question: string, data: Dataset): Scope {
     if (hit) scope[dim] = hit;
   }
   for (const [alias, [dim, member]] of Object.entries(ALIASES)) {
-    if (!scope[dim] && mentions(q, alias)) scope[dim] = member;
+    if (!scope[dim] && all[dim].includes(member) && mentions(q, alias)) scope[dim] = member;
   }
   return scope;
 }
@@ -115,6 +115,12 @@ export function interpret(question: string, data: Dataset): Interpretation {
   // A dimension only counts for ranking if the question has not already fixed one of its members.
   const dim = DIM_TERMS.find(([re, d]) => re.test(q) && !(d in scope))?.[1];
 
+  if (metric && !hasMetric(data, metric)) {
+    return done({ kind: "unknown", reason: `The uploaded data does not contain what is needed to measure ${METRICS[metric].noun}.` });
+  }
+  if (metric && comparative && dim && !dimsOf(data, METRICS[metric].source).includes(dim)) {
+    return done({ kind: "unknown", reason: `The uploaded data cannot break ${METRICS[metric].noun} down by ${DIM_LABEL[dim].toLowerCase()}.` });
+  }
   if (metric && comparative && dim && METRICS[metric].source === "orders") return done({ kind: "rank", metric, dim, scope });
   if (metric && comparative && dim && METRICS[metric].source === "marketing" && (dim === "country" || dim === "channel")) {
     return done({ kind: "rank", metric, dim, scope });
@@ -133,3 +139,19 @@ export const SUGGESTIONS = [
   "Where are we losing margin?",
   "Which countries have the slowest delivery?",
 ];
+
+/** Example questions the current dataset can actually answer. */
+export function suggestionsFor(data: Dataset): string[] {
+  if (!data.available) return SUGGESTIONS;
+  const dims = dimsOf(data, "orders");
+  const country = dims.includes("country") ? data.countries[0]?.name : undefined;
+  return [
+    "What changed this quarter?",
+    country ? `Why did revenue change in ${country}?` : "Why did revenue change?",
+    ...(hasMetric(data, "repurchase") ? [dims.includes("segment") ? "Which customers are most at risk?" : "Why is the repeat purchase rate changing?"] : []),
+    ...(hasMetric(data, "margin") ? ["Where are we losing margin?"] : []),
+    ...(hasMetric(data, "delivery") && country ? ["Which countries have the slowest delivery?"] : []),
+    ...(dims.includes("product") ? ["Which products have the highest revenue?"] : []),
+    ...(country ? ["Which countries have the lowest order value?"] : []),
+  ];
+}

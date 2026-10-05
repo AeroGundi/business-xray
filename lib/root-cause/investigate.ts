@@ -1,7 +1,7 @@
 import type { Dataset } from "@/types/domain";
 import type { DrillStep, Driver, Impact, Investigation } from "@/types/insights";
 import { type Comparison, type Effect, type Pair, aggregatePairs, contributionOf, effectOf, sideOf, splitBy, weeksOf } from "@/lib/analytics/compare";
-import { DIMS, METRICS, type FactRow, type Metric, type MetricId, type Scope, inScope, rowsOf, weeklySeries, weeklyValues } from "@/lib/analytics/metrics";
+import { METRICS, dimsOf, hasMetric, type FactRow, type Metric, type MetricId, type Scope, inScope, rowsOf, weeklySeries, weeklyValues } from "@/lib/analytics/metrics";
 import { Accumulator, meanDifferenceTest, pearson } from "@/lib/analytics/stats";
 
 /**
@@ -54,7 +54,7 @@ export function drill(data: Dataset, metric: Metric, rootScope: Scope, c: Compar
   while (steps.length < DRILL.maxDepth) {
     let best: DrillStep | null = null;
     let bestLift = -Infinity;
-    for (const dim of DIMS[metric.source]) {
+    for (const dim of dimsOf(data, metric.source)) {
       if (dim in scope) continue;
       const split = splitBy(data, metric, scope, c, dim);
       if (split.total.change === 0) continue;
@@ -88,8 +88,8 @@ export function rowValue(metric: Metric, row: FactRow): number | null {
 }
 
 /** Candidate driver metrics for a target, i.e. the hypotheses the engine can test. */
-export function driverCandidates(target: Metric): MetricId[] {
-  return CANDIDATES[target.source].filter((id) => id !== target.id);
+export function driverCandidates(target: Metric, data: Dataset): MetricId[] {
+  return CANDIDATES[target.source].filter((id) => id !== target.id && hasMetric(data, id));
 }
 
 /** A driver counts as supported when the shift is both significant and material. */
@@ -97,7 +97,7 @@ export const isSupported = (d: Driver): boolean => d.p <= DRIVER.maxP && Math.ab
 
 /** Tests candidate drivers inside a scope and returns every result, supported or not. */
 export function testDrivers(data: Dataset, target: Metric, scope: Scope, c: Comparison, only?: MetricId[]): Driver[] {
-  const candidates = only ?? driverCandidates(target);
+  const candidates = only ?? driverCandidates(target, data);
   const hasControl = c.kind === "time" && Object.keys(scope).length > 0;
   const acc = candidates.map(() => ({ a: new Accumulator(), b: new Accumulator(), ca: new Accumulator(), cb: new Accumulator() }));
 

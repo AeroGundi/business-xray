@@ -25,6 +25,11 @@ npm run dev
 
 ## What exists
 
+Two ways in: **Explore demo business** (the synthetic NOVA retailer) or
+**Analyze my business** — upload CSV/Excel files, have the columns recognised
+and confirmed, see validation and a Data Readiness score, and run the same
+X-Ray on your own data (in the browser; files are not uploaded).
+
 Landing → business scan → health score and seven findings → root-cause
 drill-down → evidence and testable hypotheses → impact → What-If simulator → Decision brief,
 plus Ask the Business (natural-language questions answered by the analytics

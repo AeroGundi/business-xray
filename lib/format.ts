@@ -16,9 +16,17 @@ export function formatValue(x: number, unit: Unit | "index"): string {
   }
 }
 
+/**
+ * Display currency. Money is never converted — this is only the symbol shown,
+ * set once when a dataset is loaded (the demo business reports in euros).
+ */
+let symbol = "€";
+export const setCurrency = (s: string): void => void (symbol = s);
+export const currency = (): string => symbol;
+
 export function formatEur(x: number): string {
   const a = Math.abs(x);
-  const body = a >= 1e6 ? `€${nf(2).format(a / 1e6)}M` : a >= 1e4 ? `€${nf(0).format(a / 1e3)}k` : a >= 1e3 ? `€${nf(1).format(a / 1e3)}k` : `€${nf(0).format(a)}`;
+  const body = a >= 1e6 ? `${symbol}${nf(2).format(a / 1e6)}M` : a >= 1e4 ? `${symbol}${nf(0).format(a / 1e3)}k` : a >= 1e3 ? `${symbol}${nf(1).format(a / 1e3)}k` : `${symbol}${nf(0).format(a)}`;
   return x < 0 ? `−${body}` : body;
 }
 

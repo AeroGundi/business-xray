@@ -1,11 +1,16 @@
 # Architecture
 
 Business X-Ray is a client-side Next.js application. All analysis runs in the
-browser on a deterministic synthetic dataset; there is no backend yet.
+browser, either on a deterministic synthetic dataset (the NOVA demo) or on
+files the user uploads; the only server code is the optional `/api/explain`
+route that rewords a finding.
 
 ## Layers
 
 ```
+INGESTION       lib/ingestion       parse → profile → detect → extract → normalise → validate → readiness
+                                    (uploaded files only; produces the same Dataset the generator does)
+  ↓
 DATA            lib/data            seeded generator, reference catalog, planted scenarios
   ↓
 ANALYTICS       lib/analytics       stats, metric registry, aggregation, contribution analysis, health score
@@ -21,7 +26,8 @@ INSIGHTS        lib/insights        the seven finding detectors, template narrat
 VISUALIZATION   lib/visualization   particles, pure layout functions, state → ViewSpec mapping
                 components/visualization   WebGL point cloud (three.js / React Three Fiber)
                 components/xray     the experience: landing, scan, overview, investigation
-                store               zustand store: phase, scan progress, active finding, stage
+                components/ingestion   the "Analyze my business" screens
+                store               useXray (phase, scan, active finding) · useIngest (files, mapping, analysis)
 ```
 
 Rules that hold across the codebase:
@@ -72,7 +78,52 @@ Drilling down narrows the scope: particles outside it retreat to a distant
 shell while those inside regroup by the next dimension, which reads as moving
 deeper into the business.
 
+## Ingestion: MY DATA → BUSINESS X-RAY
+
+```
+files ──parse.ts──▶ RawTable            CSV (RFC 4180, delimiter sniffing) and .xlsx (own reader over fflate)
+      ──profile.ts─▶ Profile per column  type rates, cardinality, ranges, country and code patterns
+      ──detect.ts──▶ SourceMapping       file → canonical table, column → canonical field, with confidence
+                     (the user confirms or corrects; nothing below runs on an unconfirmed low-confidence mapping)
+      ──extract.ts─▶ typed records       per-field missing/invalid counts, rows set aside with a reason, relationships
+      ──normalize.ts▶ Dataset            the engine's own structure + `available` (what the data supports)
+      ──validate.ts─▶ Issue[]            plain-language problems with counts, sample rows and a way forward
+      ──readiness.ts▶ Readiness          five scored dimensions and the capability matrix
+```
+
+Design decisions:
+
+- **A normalisation layer, not a second engine.** `schema.ts` defines the
+  canonical e-commerce model (orders, customers, products, delivery,
+  marketing, returns). Uploaded data is reshaped into the `Dataset` type the
+  generator produces, so every existing analysis, the visualization and the
+  AI layer run unchanged.
+- **Capability gating instead of placeholders.** `Dataset.available` lists
+  the metrics and dimensions the data supports. `hasMetric` / `dimsOf`
+  (`lib/analytics/metrics.ts`) are consulted by the finding detectors, the
+  drill-down, driver tests, the health score, the scan readouts, Ask the
+  Business and the What-If entry points. An analysis the data cannot support
+  is absent, never computed from defaults. The demo dataset has no
+  `available` field and supports everything.
+- **Deterministic schema detection.** No language model takes part in
+  ingestion. Every confidence is a documented weighted sum (METHODOLOGY §12).
+- **Everything stays in the browser.** Files are read with the File API and
+  never sent anywhere. `pipeline.evaluate` is pure, so a mapping change just
+  runs it again.
+- `templates.ts` generates the downloadable templates and can write any
+  `Dataset` in template format; the demo business exported this way is both
+  the "filled example" download and the round-trip test fixture.
+
+Limits: parsing and analysis run on the main thread (about one second for
+170k rows across six files); `.xls` is not supported; only the e-commerce
+model exists; an order with several products is analysed per product line.
+
 ## Experience flow
+
+`landing → connect(steps) → scanning → …` for uploaded data: the ingestion
+steps are `connect / template → processing → mapping → validation →
+readiness → ready`, after which `useXray.load(dataset)` starts the same scan
+the demo uses.
 
 `landing → scanning → overview → investigating(stage) → whatif → decision`
 (plus `answer` for Ask the Business); an investigation's
@@ -106,7 +157,10 @@ always shows the option being read.
 
 ## Not built yet
 
-User-directed branching in the drill-down, model-based intent parsing.
+User-directed branching in the drill-down, model-based intent parsing,
+business models other than e-commerce, direct data connections, a What-If
+model that degrades gracefully when some of its drivers are missing (it is
+currently all-or-nothing).
 
 ## Performance
 

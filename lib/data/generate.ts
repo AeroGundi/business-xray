@@ -157,12 +157,12 @@ export function generateDataset(seed = 2026): Dataset {
 }
 
 /** Flags, for each order, whether the customer came back within the follow-up window. */
-function markRepurchases(orders: OrderRow[]): void {
+export function markRepurchases(orders: OrderRow[], weeks = WEEKS): void {
   const next = new Map<number, number>();
   for (let i = orders.length - 1; i >= 0; i--) {
     const o = orders[i];
     const nextWeek = next.get(o.customerId);
-    o.eligible = o.week + REPURCHASE_WEEKS < WEEKS ? 1 : 0;
+    o.eligible = o.week + REPURCHASE_WEEKS < weeks ? 1 : 0;
     o.repurchased = o.eligible && nextWeek !== undefined && nextWeek - o.week <= REPURCHASE_WEEKS ? 1 : 0;
     next.set(o.customerId, o.week);
   }
