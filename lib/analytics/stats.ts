@@ -118,20 +118,4 @@ export function pearson(xs: ArrayLike<number>, ys: ArrayLike<number>): Correlati
   return { r, n, p: pValue(Math.atanh(r) * Math.sqrt(n - 3)) };
 }
 
-/** Ordinary least-squares slope and intercept of ys over 0..n−1. */
-export function linearTrend(ys: ArrayLike<number>): { slope: number; intercept: number } {
-  const n = ys.length;
-  if (n < 2) return { slope: 0, intercept: ys[0] ?? 0 };
-  const mx = (n - 1) / 2;
-  const my = mean(ys);
-  let sxy = 0;
-  let sxx = 0;
-  for (let i = 0; i < n; i++) {
-    sxy += (i - mx) * (ys[i] - my);
-    sxx += (i - mx) ** 2;
-  }
-  const slope = sxy / sxx;
-  return { slope, intercept: my - slope * mx };
-}
-
 export const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));

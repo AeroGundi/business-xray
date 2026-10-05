@@ -5,9 +5,12 @@ import "./globals.css";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
+const description = "See what is really happening inside a business. An interactive investigation: scan, locate, explain, size and simulate.";
+
 export const metadata: Metadata = {
   title: "Business X-Ray",
-  description: "See what is really happening inside a business.",
+  description,
+  openGraph: { title: "Business X-Ray", description, type: "website" },
 };
 
 export const viewport: Viewport = { themeColor: "#06070a" };

@@ -100,7 +100,7 @@ export class ParticleCloud {
 
   update(f: FrameState): void {
     this.progress = Math.min(1, this.progress + f.delta / Math.max(this.duration, 1e-3));
-    this.scan += ((f.scanning ? 1 : 0) - this.scan) * Math.min(1, f.delta * 3);
+    this.scan += ((f.scanning && !f.reducedMotion ? 1 : 0) - this.scan) * Math.min(1, f.delta * 3);
     this.scanY = Math.sin(f.time * 1.25) * f.scanExtent;
     const u = this.points.material.uniforms;
     u.uProgress.value = this.progress;

@@ -31,7 +31,7 @@ plus Ask the Business (natural-language questions answered by the analytics
 engine). See
 `docs/ARCHITECTURE.md` and `docs/METHODOLOGY.md`.
 
-Planned: Decision chapter, final polish pass.
+Planned: Decision chapter.
 
 ## Optional: model-worded explanations
 

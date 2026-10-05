@@ -29,9 +29,9 @@ export function FindingsList({ findings }: { findings: Finding[] }) {
                 onMouseEnter={() => hover(f.id)}
                 onFocus={() => hover(f.id)}
                 onBlur={() => hover(null)}
-                className={`tone-${f.tone} pointer-events-auto grid w-full cursor-pointer grid-cols-[2.2rem_1fr_auto] items-baseline gap-x-2 border-t border-line py-3.5 text-left transition-opacity duration-500 ${dimmed ? "opacity-35" : ""}`}
+                className={`group tone-${f.tone} pointer-events-auto grid w-full cursor-pointer grid-cols-[2.2rem_1fr_auto] items-baseline gap-x-2 border-t border-line py-3.5 text-left transition-opacity duration-500 ${dimmed ? "opacity-35" : ""}`}
               >
-                <span className="label">{String(f.index).padStart(2, "0")}</span>
+                <span className="label transition-[color,transform] duration-500 ease-xray group-hover:translate-x-1 group-hover:text-ink group-focus-visible:translate-x-1 group-focus-visible:text-ink">{String(f.index).padStart(2, "0")}</span>
                 <span>
                   <span className="block text-[1.05rem] tracking-tight">{f.title}</span>
                   <span className="mt-1 block text-[0.8rem] leading-snug text-ink-3">{scopeLabel(f.investigation.leafScope)}</span>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import type { Answer } from "@/lib/ai/answer";
 import { ToneMark } from "@/components/ui/ToneMark";
 import { useXray } from "@/store/useXray";
@@ -10,6 +11,12 @@ import { sourceLabel, useExplanation } from "./useExplanation";
 export function AnswerView({ answer }: { answer: Answer }) {
   const { follow, ask, close } = useXray.getState();
   const explanation = useExplanation({ topic: `${answer.question} — ${answer.interpretation}`, draft: answer.explanation, facts: answer.facts });
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [close]);
 
   return (
     <section className="stage-grid">

@@ -98,4 +98,9 @@ quantised so dragging retargets the particles in steps.
 ## Not built yet
 
 Decision chapter, user-directed branching in the drill-down, model-based
-intent parsing, final polish pass.
+intent parsing.
+
+## Performance
+
+Measured in Chromium on the development machine at a 2344×1540 canvas with
+14,000 particles: 60 fps idle and during transitions (worst frame 18 ms).

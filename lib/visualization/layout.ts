@@ -252,9 +252,12 @@ export function computeLayout(set: ParticleSet, spec: ViewSpec, frame: Frame, to
     const dir: [number, number] = len > 0.05 ? [center[0] / len, center[1] / len] : [0, -1];
     // Labels are centred on their anchor, so sideways ones need extra clearance for their width.
     const off = radius * 1.1 + 0.1 + Math.abs(dir[0]) * 0.22;
+    const x = center[0] + dir[0] * off;
+    // A label whose text would run into the side columns is dropped unless it names the subject.
+    if (!frame.compact && Math.abs(x) + m.key.length * 0.028 > frame.rx * 1.03 && m.key !== spec.highlight) return;
     labels.push({
       key: m.key, text: m.key, note: spec.notes?.[m.key],
-      position: [center[0] + dir[0] * off, center[1] + dir[1] * off, center[2]],
+      position: [x, center[1] + dir[1] * off, center[2]],
       anchor: "center",
       emphasis: spec.highlight === undefined ? "normal" : m.key === spec.highlight ? "high" : "low", kind: "cluster",
     });
