@@ -12,11 +12,13 @@ interface Props {
   spec: ViewSpec;
   frame: Frame;
   scanning: boolean;
+  /** Seconds a retarget takes; short while a slider is being dragged. */
+  transition: number;
   reducedMotion: boolean;
   onLayout: (layout: Layout) => void;
 }
 
-export function ParticleField({ set, spec, frame, scanning, reducedMotion, onLayout }: Props) {
+export function ParticleField({ set, spec, frame, scanning, transition, reducedMotion, onLayout }: Props) {
   const cloud = useMemo(() => new ParticleCloud(set), [set]);
   const scanLine = useRef<THREE.Mesh<THREE.PlaneGeometry, THREE.MeshBasicMaterial>>(null);
   const height = useThree((s) => s.size.height);
@@ -24,8 +26,8 @@ export function ParticleField({ set, spec, frame, scanning, reducedMotion, onLay
   // Read at retarget time only: changing pace must not retarget.
   const seconds = useRef(2.4);
   useEffect(() => {
-    seconds.current = reducedMotion ? 0 : scanning ? 1.5 : 2.4;
-  }, [reducedMotion, scanning]);
+    seconds.current = reducedMotion ? 0 : transition;
+  }, [reducedMotion, transition]);
 
   useEffect(() => () => cloud.dispose(), [cloud]);
 

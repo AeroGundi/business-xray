@@ -22,6 +22,9 @@ export function Overview() {
       </div>
       <div className="stage-col">
         <FindingsList findings={findings} />
+        <button type="button" className="command pointer-events-auto mt-4 self-start" onClick={() => useXray.getState().openWhatIf()}>
+          What if? <span aria-hidden>→</span>
+        </button>
       </div>
     </section>
   );

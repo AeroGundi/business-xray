@@ -308,7 +308,7 @@ function Evidence({ f, stage }: { f: Finding; stage: Stage }) {
 
 export function Investigation({ finding }: { finding: Finding }) {
   const stage = useXray((s) => s.stage);
-  const { next, back, close, goTo } = useXray.getState();
+  const { next, back, close, goTo, openWhatIf } = useXray.getState();
   const stages = stagesOf(finding);
   const current = stages[Math.min(stage, stages.length - 1)];
   const upcoming = stages[stage + 1];
@@ -362,8 +362,8 @@ export function Investigation({ finding }: { finding: Finding }) {
               {question} <span aria-hidden>→</span>
             </button>
           ) : (
-            <button type="button" className="command pointer-events-auto" onClick={close}>
-              Back to findings
+            <button type="button" className="command pointer-events-auto" onClick={() => openWhatIf(finding.id)} autoFocus>
+              What can we do? <span aria-hidden>→</span>
             </button>
           )}
           <span className="label whitespace-nowrap max-lg:hidden">

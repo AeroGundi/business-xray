@@ -7,9 +7,10 @@ import { generateDataset } from "@/lib/data/generate";
 import { type Answer, type AnswerRow, ask as resolveQuestion, resolveIntent } from "@/lib/ai/answer";
 import { describeIntent } from "@/lib/ai/intent";
 import { SCAN_STAGES, type ScanContext } from "@/lib/engine/scan";
+import { calibrate, type Levers, type Model, NO_CHANGE, presets, type Scenario } from "@/lib/simulation/model";
 import { stagesOf } from "@/lib/visualization/view";
 
-export type Phase = "landing" | "scanning" | "overview" | "answer" | "investigating";
+export type Phase = "landing" | "scanning" | "overview" | "answer" | "investigating" | "whatif";
 
 interface XrayState {
   data: Dataset | null;
@@ -29,11 +30,18 @@ interface XrayState {
   origin: "overview" | "answer";
   hoverId: FindingId | null;
   stage: number;
+  /** What-If simulator: calibrated model, current lever settings, scenarios to compare. */
+  model: Model | null;
+  levers: Levers;
+  scenarios: Scenario[];
   reducedMotion: boolean;
   init: () => void;
   startScan: () => Promise<void>;
   open: (id: FindingId) => void;
   ask: (question: string) => void;
+  openWhatIf: (resolveId?: FindingId) => void;
+  setLevers: (levers: Partial<Levers>) => void;
+  pinScenario: () => void;
   follow: (action: NonNullable<AnswerRow["action"]>, label: string) => void;
   hover: (id: FindingId | null) => void;
   goTo: (stage: number) => void;
@@ -60,6 +68,9 @@ export const useXray = create<XrayState>((set, get) => ({
   origin: "overview",
   hoverId: null,
   stage: 0,
+  model: null,
+  levers: NO_CHANGE,
+  scenarios: [],
   reducedMotion: false,
 
   init: () => {
@@ -93,6 +104,21 @@ export const useXray = create<XrayState>((set, get) => ({
     else set({ asked: result.finding, activeId: "ask", stage: 0, phase: "investigating", origin: "overview", hoverId: null });
   },
 
+  openWhatIf: (resolveId) => {
+    const { data, findings } = get();
+    if (!data) return;
+    const model = get().model ?? calibrate(data, findings);
+    const scenarios = get().scenarios.length ? get().scenarios : presets(model);
+    const fix = model.resolvable.find((r) => r.id === resolveId);
+    set({ model, scenarios, phase: "whatif", activeId: null, levers: fix ? { ...NO_CHANGE, resolve: 1, resolveId: fix.id } : get().levers });
+  },
+  setLevers: (levers) => set({ levers: { ...get().levers, ...levers } }),
+  pinScenario: () => {
+    const { scenarios, levers } = get();
+    const custom = scenarios.filter((s) => s.id.startsWith("custom")).length;
+    set({ scenarios: [...scenarios, { id: `custom-${custom + 1}`, name: `Your scenario ${custom + 1}`, levers }] });
+  },
+
   follow: (action, label) => {
     const { data, findings, open } = get();
     if (!data) return;
@@ -112,7 +138,7 @@ export const useXray = create<XrayState>((set, get) => ({
     else set({ stage: get().stage - 1 });
   },
   close: () => set({ phase: get().phase === "investigating" && get().origin === "answer" && get().answer ? "answer" : "overview", activeId: null, stage: 0 }),
-  restart: () => set({ phase: "landing", activeId: null, asked: null, answer: null, hoverId: null, stage: 0, readouts: [], scanIndex: 0 }),
+  restart: () => set({ phase: "landing", activeId: null, asked: null, answer: null, model: null, scenarios: [], levers: NO_CHANGE, hoverId: null, stage: 0, readouts: [], scanIndex: 0 }),
   setReducedMotion: (value) => set({ reducedMotion: value }),
 }));
 

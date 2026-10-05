@@ -3,13 +3,14 @@
 import { activeFinding, useXray } from "@/store/useXray";
 import { stagesOf } from "@/lib/visualization/view";
 
-const CHAPTERS = ["The business", "The scan", "What changed?", "Where?", "Why?", "Impact"];
+const CHAPTERS = ["The business", "The scan", "What changed?", "Where?", "Why?", "Impact", "What if?"];
 
 function useChapter(): number {
   return useXray((s) => {
     if (s.phase === "landing") return 0;
     if (s.phase === "scanning") return 1;
     if (s.phase === "overview" || s.phase === "answer") return 2;
+    if (s.phase === "whatif") return 6;
     const f = activeFinding(s);
     const kind = f ? stagesOf(f)[s.stage]?.kind : "metric";
     return kind === "segment" ? 3 : kind === "cause" ? 4 : kind === "impact" ? 5 : 2;

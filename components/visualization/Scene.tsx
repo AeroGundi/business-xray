@@ -14,6 +14,8 @@ interface SceneProps {
   /** Whether the layout leaves side columns free (investigation / overview) or is centred. */
   centered: boolean;
   scanning: boolean;
+  /** Seconds each view change takes. */
+  transition: number;
   reducedMotion: boolean;
   /** CSS colour for the highlighted label's figure. */
   tone?: string;
@@ -45,7 +47,7 @@ function Guides({ segments, version }: { segments: Float32Array; version: number
   );
 }
 
-function Rig({ set, spec, centered, scanning, reducedMotion, tone }: SceneProps) {
+function Rig({ set, spec, centered, scanning, transition, reducedMotion, tone }: SceneProps) {
   const group = useRef<THREE.Group>(null);
   const viewport = useThree((s) => s.viewport);
   const width = useThree((s) => s.size.width);
@@ -78,7 +80,7 @@ function Rig({ set, spec, centered, scanning, reducedMotion, tone }: SceneProps)
 
   return (
     <group ref={group}>
-      <ParticleField set={set} spec={spec} frame={frame} scanning={scanning} reducedMotion={reducedMotion} onLayout={onLayout} />
+      <ParticleField set={set} spec={spec} frame={frame} scanning={scanning} transition={transition} reducedMotion={reducedMotion} onLayout={onLayout} />
       <Guides segments={layout.layout.segments} version={layout.version} />
       {layout.layout.labels.map((label) => (
         <Html

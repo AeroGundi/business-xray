@@ -94,3 +94,14 @@ export function investigationView(finding: Finding, stageIndex: number): ViewSpe
       return { mode: "cluster", scope: {}, dim: "country", hue, marks: [{ scope: inv.leafScope, hue }] };
   }
 }
+
+/** The business under a simulated scenario: order volume and profit direction relative to today. */
+export function whatIfView(ordersRatio: number, profitChange: number, resolved: Finding | null): ViewSpec {
+  // Quantised so that dragging a slider retargets the particles in visible steps only.
+  const volume = Math.round(Math.min(2, Math.max(0.2, ordersRatio)) * 50) / 50;
+  const tint = Math.round(Math.min(0.7, Math.abs(profitChange) * 3) * 20) / 20;
+  return {
+    mode: "cluster", scope: {}, dim: "country", hue: profitChange >= 0 ? HUE.positive : HUE.risk, volume, tint,
+    marks: resolved ? [{ scope: resolved.investigation.leafScope, hue: HUE.positive }] : undefined,
+  };
+}

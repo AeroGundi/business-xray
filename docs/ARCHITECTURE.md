@@ -14,6 +14,7 @@ ANALYTICS       lib/analytics       stats, metric registry, aggregation, contrib
   ↓
 INSIGHTS        lib/insights        the seven finding detectors, template narrative
                 lib/engine          the staged business scan
+                lib/simulation      What-If model: parameter estimation, calibration, scenarios, narrative
                 lib/ai              Ask the Business: intent → answer → grounded explanation; AIProvider
                 app/api/explain     server route that rewords a draft with a language model
   ↓
@@ -85,8 +86,16 @@ produces a `Finding` (id `"ask"`) and opens the normal investigation flow; a
 with its own `ViewSpec`. The model vendor is named only in
 `app/api/explain/route.ts` and `lib/ai/server/anthropic.ts`.
 
+## What-If
+
+`store.openWhatIf()` calibrates a `Model` once from the data and findings.
+`project(model, levers)` is pure and cheap, so every slider movement
+recomputes the outcome, its price-sensitivity range and every scenario in the
+comparison list. The visualization shows simulated order volume (orders fade
+or baseline rings light up) and tints by profit direction; values are
+quantised so dragging retargets the particles in steps.
+
 ## Not built yet
 
-What-If simulator, Decision chapter, user-directed branching in the
-drill-down, model-based intent parsing. `lib/simulation/` marks where the
-simulator attaches.
+Decision chapter, user-directed branching in the drill-down, model-based
+intent parsing, final polish pass.

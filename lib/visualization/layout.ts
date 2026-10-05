@@ -33,6 +33,13 @@ export type ViewSpec =
       marks?: Mark[];
       /** Hide cluster labels (used while scanning). */
       quiet?: boolean;
+      /**
+       * Simulated order volume relative to today. Below 1, that share of recent
+       * orders fades; above 1, baseline rings light up as projected extra orders.
+       */
+      volume?: number;
+      /** Uniform heat applied to every visible order (simulated profit direction). */
+      tint?: number;
     }
   | { mode: "timeline"; scope: Scope; metric: MetricId | null; hue: number };
 
@@ -185,7 +192,11 @@ export function computeLayout(set: ParticleSet, spec: ViewSpec, frame: Frame, to
     visible++;
   }
   // A single mark is read against the rest of the business, which steps back.
-  const backdrop = spec.marks?.length === 1 ? 0.5 : 1;
+  const backdrop = spec.marks?.length === 1 && spec.volume === undefined ? 0.5 : 1;
+  const volume = spec.volume ?? 1;
+  let recents = 0;
+  if (volume > 1) for (let i = 0; i < count; i++) if (!ghost[i]) recents++;
+  const promote = volume > 1 ? ((volume - 1) * recents) / Math.max(1, count - recents) : 0;
   const members = [...groups].map(([key, c]) => ({ key, count: c })).sort((a, b) => b.count - a.count);
   const placed = placeClusters(members, frame);
 
@@ -203,8 +214,14 @@ export function computeLayout(set: ParticleSet, spec: ViewSpec, frame: Frame, to
     let heat = spec.highlight !== undefined ? (receded ? 0 : 1) : Math.min(1, Math.max(0, spec.heat?.[key] ?? 0));
     let hue = spec.hue;
     if (ghost[i]) heat = 0;
+    if (spec.volume !== undefined) {
+      const lost = !ghost[i] && seed[i] > volume;
+      const gained = ghost[i] === 1 && seed[i] < promote;
+      alpha = lost ? 0.1 : gained ? 0.95 : alpha;
+      heat = lost || (ghost[i] && !gained) ? 0 : (spec.tint ?? 0);
+    }
     if (spec.marks) {
-      heat = 0;
+      if (spec.volume === undefined) heat = 0;
       for (const mark of spec.marks) {
         if (inScope(row, mark.scope)) {
           heat = ghost[i] ? 0.55 : 1;

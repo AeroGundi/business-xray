@@ -197,7 +197,62 @@ question; it has no memory of previous questions; time periods in a question
 ("this quarter", "last month") are not parsed — the standard 10-week
 comparison is always used and stated in the interpretation.
 
-## 9. Evaluation design (proposed)
+## 9. What-If simulation (`lib/simulation`)
+
+**Kind of model.** Comparative statics on the weekly run-rate. The baseline is
+the last 10 weeks; a scenario's result is the run-rate once the customer base
+has adjusted to the change. It is not a forecast and has no time path.
+
+**Equations** (subscript 0 = baseline; levers: price p, discount depth d,
+marketing spend m, delivery change ΔD days, retention budget b €/week):
+
+    demand factor     Q = [(1 + p)(1 − d) / (1 − d₀)] ^ ε
+    acquisitions      N = N₀ · (1 + m)^η · Q
+    days late         Δlate(ΔD) = mean max(0, gapᵢ + ΔD − 1) − mean max(0, gapᵢ − 1)
+    repeat rate       r = r₀ + β_rep · Δlate + k · √(b / 1000)
+    continuation      c = c₀ · r / r₀
+    orders            O = O₀ · (1 + m)^η · Q · (1 − c₀) / (1 − c)
+    return rate       ρ = ρ₀ + β_ret · Δlate
+    revenue           = O · list₀ (1 + p)(1 − d)
+    profit            = O · [(1 − ρ)(rev/order − cogs₀ − ship) − ρ(2·ship + ¼·cogs₀)] − spend₀(1 + m) − b
+    shipping          ship = ship₀ + κ · max(0, −ΔD)
+
+`gapᵢ` is delivery minus promised days for each recent order, so the effect of
+a delivery change on lateness is computed on the empirical distribution rather
+than assumed linear. `c₀` is the share of orders placed by returning customers;
+with a geometric repurchase process, orders per acquired customer are
+1/(1 − c), which gives the orders equation. With all levers at zero the model
+reproduces observed revenue exactly (unit-tested).
+
+**Parameters.**
+
+| Symbol | Meaning | Source | Value (seed 2026) |
+|---|---|---|---|
+| η | acquisition elasticity to spend | estimated: log–log OLS, weekly, paid channels, channel fixed effects | 0.56 ± 0.09 |
+| β_ret | return rate per day late | estimated: linear probability, category fixed effects | +1.45 ± 0.19 pts |
+| β_rep | repeat rate per day late | estimated: linear probability, segment fixed effects | −0.47 ± 0.33 pts |
+| ε | price elasticity of demand | **assumed** — list prices never vary in the data | −1.3; range −0.8 to −1.8 shown |
+| k | repeat-rate gain per √(€1k/week) retention budget | **assumed** — no programme in the data | 0.3 pts |
+| κ | shipping cost per day saved, per order | **assumed** — no carrier pricing in the data | €0.90 |
+
+Estimates are shown with their standard error in the interface. β_rep is not
+statistically distinguishable from zero (t ≈ 1.4): the delivery lever's effect
+on retention is weak evidence and should be presented as such.
+
+**Resolving a finding.** A scenario may recover a share s of one finding's
+estimated impact (§6): s × weekly impact is added to revenue (revenue and
+repeat-rate findings, earning the average contribution margin) or directly to
+profit (margin and CAC findings). This is a return-to-baseline counterfactual,
+not a modelled intervention, and findings can overlap, so only one can be
+resolved per scenario.
+
+**Limitations.** Steady state only; constant elasticities; no competitor
+response, capacity or stock effects; discount is treated as a price change;
+the continuation scaling makes outcomes sensitive to small repeat-rate
+changes; estimates are from observational data and may be confounded (the
+spend elasticity pools a period in which one channel saturated).
+
+## 10. Evaluation design (proposed)
 
 Between-subjects comparison of a conventional dashboard built on the same
 dataset versus Business X-Ray. Because the scenarios are planted, the correct
