@@ -26,12 +26,10 @@ npm run dev
 ## What exists
 
 Landing → business scan → health score and seven findings → root-cause
-drill-down → evidence and testable hypotheses → impact → What-If simulator,
+drill-down → evidence and testable hypotheses → impact → What-If simulator → Decision brief,
 plus Ask the Business (natural-language questions answered by the analytics
 engine). See
 `docs/ARCHITECTURE.md` and `docs/METHODOLOGY.md`.
-
-Planned: Decision chapter.
 
 ## Optional: model-worded explanations
 

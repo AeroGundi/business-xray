@@ -252,7 +252,39 @@ the continuation scaling makes outcomes sensitive to small repeat-rate
 changes; estimates are from observational data and may be confounded (the
 spend elasticity pools a period in which one channel saturated).
 
-## 10. Evaluation design (proposed)
+## 10. Decision (`lib/simulation/decision.ts`)
+
+**Stress test.** Each option is re-simulated under every combination of
+plausible values of the parameters it depends on (and only those — an option
+that does not move price is not exposed to price elasticity):
+
+| Parameter type | Values tried |
+|---|---|
+| price elasticity | −0.8, −1.3, −1.8 |
+| other assumed parameters | 0.5×, 1×, 1.5× the assumed value |
+| estimated parameters | estimate − 1 SE, estimate, estimate + 1 SE |
+| share of a finding recovered | 0.5×, 1×, up to full recovery |
+
+The lowest and highest resulting profit are the option's pessimistic and
+optimistic cases.
+
+**Decision rule.** Options are ranked by pessimistic-case profit and the
+highest is marked "most robust" (maximin). This is a deliberately cautious
+criterion suited to a model with assumed parameters; the expected value is
+shown alongside so a less risk-averse reader can choose differently. The
+product marks an option; the user chooses.
+
+**Brief.** For the chosen option: expected and annualised profit, the range,
+which parameters it rests on (estimated or assumed), and a watch-list — the
+metrics each moved lever should shift, with the current value and the value
+the model expects — so the decision can be checked against reality afterwards.
+The brief can be copied as plain text.
+
+Limitations: the grid is a set of scenarios, not a probability distribution,
+so the range is not a confidence interval; parameters are varied
+independently; maximin ignores upside.
+
+## 11. Evaluation design (proposed)
 
 Between-subjects comparison of a conventional dashboard built on the same
 dataset versus Business X-Ray. Because the scenarios are planted, the correct

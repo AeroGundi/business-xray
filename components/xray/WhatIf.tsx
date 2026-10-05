@@ -87,7 +87,7 @@ export function WhatIf({ model, projection }: { model: Model; projection: Projec
   const levers = useXray((s) => s.levers);
   const scenarios = useXray((s) => s.scenarios);
   const findings = useXray((s) => s.findings);
-  const { setLevers, pinScenario, close } = useXray.getState();
+  const { setLevers, pinScenario, close, openDecision } = useXray.getState();
   const { current: c, outcome: o } = projection;
   const changed = !sameLevers(levers, NO_CHANGE);
   const known = scenarios.some((s) => sameLevers(s.levers, levers));
@@ -163,8 +163,11 @@ export function WhatIf({ model, projection }: { model: Model; projection: Projec
           )}
         </div>
 
-        <div className="mt-4 flex items-center gap-8">
-          <button type="button" className="command pointer-events-auto disabled:cursor-default disabled:opacity-35" onClick={pinScenario} disabled={!changed || known}>
+        <div className="mt-4 flex flex-wrap items-center gap-x-7">
+          <button type="button" className="command pointer-events-auto" onClick={openDecision}>
+            Decide <span aria-hidden>→</span>
+          </button>
+          <button type="button" data-quiet className="command pointer-events-auto disabled:cursor-default disabled:opacity-35" onClick={pinScenario} disabled={!changed || known}>
             Keep scenario
           </button>
           <button type="button" className="command pointer-events-auto disabled:cursor-default disabled:opacity-35" data-quiet onClick={() => setLevers(NO_CHANGE)} disabled={!changed}>

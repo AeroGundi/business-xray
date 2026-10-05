@@ -74,7 +74,8 @@ deeper into the business.
 
 ## Experience flow
 
-`landing → scanning → overview → investigating(stage)`; an investigation's
+`landing → scanning → overview → investigating(stage) → whatif → decision`
+(plus `answer` for Ask the Business); an investigation's
 stages are `metric → segment… → cause → impact`, derived from the engine's
 drill steps (`lib/visualization/view.ts`).
 
@@ -95,10 +96,17 @@ comparison list. The visualization shows simulated order volume (orders fade
 or baseline rings light up) and tints by profit direction; values are
 quantised so dragging retargets the particles in steps.
 
+## Decision
+
+`store.openDecision()` turns the settings on screen into an option if they
+are not one already. `evaluate` stress-tests every option, `recommend`
+applies the maximin rule, and `decisionBrief` / `checkpoints` / `exportBrief`
+produce the brief. Selecting an option sets the levers, so the visualization
+always shows the option being read.
+
 ## Not built yet
 
-Decision chapter, user-directed branching in the drill-down, model-based
-intent parsing.
+User-directed branching in the drill-down, model-based intent parsing.
 
 ## Performance
 

@@ -14,6 +14,7 @@ import { investigationView, overviewView, whatIfView } from "@/lib/visualization
 import { activeFinding, useXray } from "@/store/useXray";
 import { AnswerView } from "./AnswerView";
 import { Chrome } from "./Chrome";
+import { Decision } from "./Decision";
 import { Investigation } from "./Investigation";
 import { Landing } from "./Landing";
 import { Overview } from "./Overview";
@@ -64,7 +65,7 @@ export function Experience() {
     if (phase === "overview" && particles) return overviewView(findings, findings.find((f) => f.id === hoverId) ?? null, particles);
     if (phase === "answer" && answer && particles) return answer.view ?? overviewView(findings, null, particles);
     if (phase === "investigating" && finding) return investigationView(finding, stage);
-    if (phase === "whatif") return JSON.parse(simKey) as ViewSpec;
+    if (phase === "whatif" || phase === "decision") return JSON.parse(simKey) as ViewSpec;
     return DORMANT;
   }, [phase, scanDim, findings, hoverId, finding, stage, particles, answer, simKey]);
 
@@ -75,6 +76,7 @@ export function Experience() {
     if (phase === "overview") {
       return `Scan complete. ${findings.length} findings: ${findings.map((f) => `${headline(f)} ${formatChange(f.effect.change, f.effect.changePct, METRICS[f.metric].unit)}`).join("; ")}.`;
     }
+    if (phase === "decision") return "Decision. Options compared on expected and pessimistic profit.";
     if (phase === "whatif" && projection) return `What if. Simulated weekly revenue ${Math.round(projection.outcome.revenue)} euros, profit ${Math.round(projection.outcome.profit)} euros.`;
     if (phase === "answer" && answer) return `${answer.question} ${answer.interpretation}. ${answer.explanation}`;
     return finding ? `${headline(finding)}. ${causeStatement(finding)}` : "";
@@ -86,7 +88,7 @@ export function Experience() {
         {particles && (
           <Scene
             set={particles} spec={spec} centered={phase === "landing"} scanning={phase === "scanning"}
-            transition={phase === "scanning" ? 1.5 : phase === "whatif" ? 0.9 : 2.4}
+            transition={phase === "scanning" ? 1.5 : phase === "whatif" || phase === "decision" ? 0.9 : 2.4}
             reducedMotion={reducedMotion} tone={finding ? TONE_VAR[finding.tone] : undefined}
           />
         )}
@@ -108,6 +110,7 @@ export function Experience() {
           {phase === "answer" && answer && <AnswerView answer={answer} />}
           {phase === "investigating" && finding && <Investigation finding={finding} />}
           {phase === "whatif" && model && projection && <WhatIf model={model} projection={projection} />}
+          {phase === "decision" && model && <Decision model={model} />}
         </motion.div>
       </AnimatePresence>
 

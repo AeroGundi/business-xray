@@ -186,12 +186,13 @@ function simulateWith(b: Baseline, v: Values, latenessAt: Model["latenessAt"], r
   const unitProfit = (1 - returnRate) * (perOrder - b.cogsPerOrder - shipping) - returnRate * (2 * shipping + 0.25 * b.cogsPerOrder);
 
   const fix = resolvable.find((r) => r.id === l.resolveId);
+  const recovered = fix ? fix.profitPerWeek * l.resolve : 0;
   const revenue = orders * perOrder + (fix ? fix.revenuePerWeek * l.resolve : 0);
-  const profit = orders * unitProfit - b.spend * (1 + l.spend) - l.retention + (fix ? fix.profitPerWeek * l.resolve : 0);
+  const profit = orders * unitProfit - b.spend * (1 + l.spend) - l.retention + recovered;
   return {
     revenue, profit, orders, repeatRate, returnRate,
     acquisitions: b.acquisitions * reach * demand,
-    margin: (orders * unitProfit) / (orders * perOrder),
+    margin: (orders * unitProfit + recovered) / revenue,
     deliveryDays: b.deliveryDays + l.delivery,
   };
 }

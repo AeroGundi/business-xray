@@ -7,10 +7,11 @@ import { generateDataset } from "@/lib/data/generate";
 import { type Answer, type AnswerRow, ask as resolveQuestion, resolveIntent } from "@/lib/ai/answer";
 import { describeIntent } from "@/lib/ai/intent";
 import { SCAN_STAGES, type ScanContext } from "@/lib/engine/scan";
-import { calibrate, type Levers, type Model, NO_CHANGE, presets, type Scenario } from "@/lib/simulation/model";
+import { calibrate, type Levers, type Model, NO_CHANGE, presets, sameLevers, type Scenario } from "@/lib/simulation/model";
+import { evaluate, recommend } from "@/lib/simulation/decision";
 import { stagesOf } from "@/lib/visualization/view";
 
-export type Phase = "landing" | "scanning" | "overview" | "answer" | "investigating" | "whatif";
+export type Phase = "landing" | "scanning" | "overview" | "answer" | "investigating" | "whatif" | "decision";
 
 interface XrayState {
   data: Dataset | null;
@@ -42,6 +43,8 @@ interface XrayState {
   openWhatIf: (resolveId?: FindingId) => void;
   setLevers: (levers: Partial<Levers>) => void;
   pinScenario: () => void;
+  openDecision: () => void;
+  backToWhatIf: () => void;
   follow: (action: NonNullable<AnswerRow["action"]>, label: string) => void;
   hover: (id: FindingId | null) => void;
   goTo: (stage: number) => void;
@@ -118,6 +121,17 @@ export const useXray = create<XrayState>((set, get) => ({
     const custom = scenarios.filter((s) => s.id.startsWith("custom")).length;
     set({ scenarios: [...scenarios, { id: `custom-${custom + 1}`, name: `Your scenario ${custom + 1}`, levers }] });
   },
+
+  openDecision: () => {
+    const { scenarios, levers, pinScenario } = get();
+    // The settings on screen become an option, so what is decided is always something that was simulated.
+    if (!scenarios.some((s) => sameLevers(s.levers, levers))) pinScenario();
+    const { model, findings } = get();
+    // With nothing simulated yet, open on the most robust option rather than on "no change".
+    const start = model && sameLevers(levers, NO_CHANGE) ? recommend(evaluate(model, get().scenarios, findings)).scenario.levers : levers;
+    set({ phase: "decision", levers: start });
+  },
+  backToWhatIf: () => set({ phase: "whatif" }),
 
   follow: (action, label) => {
     const { data, findings, open } = get();
